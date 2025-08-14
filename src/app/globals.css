@@ -27,3 +27,24 @@ body {
   color: var(--foreground);
   font-family: 'Poppins', sans-serif;
 }
+
+/* ==== Simple micro-animations for About page ==== */
+@keyframes float {
+  0% { transform: translateY(0) }
+  50% { transform: translateY(-10px) }
+  100% { transform: translateY(0) }
+}
+@keyframes fadeUp {
+  0% { opacity: 0; transform: translateY(12px) }
+  100% { opacity: 1; transform: translateY(0) }
+}
+@keyframes pulseSoft {
+  0%, 100% { opacity: .35 }
+  50% { opacity: .55 }
+}
+
+/* utility classes */
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-fade-up { animation: fadeUp .7s ease-out both; }
+.animate-pulse-soft { animation: pulseSoft 4s ease-in-out infinite; }
+
