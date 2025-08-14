@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Header from "@/components/Header";
 import Button from "@/components/Button";
+import Link from "next/link";
+
 
 export default function Home() {
   return (
@@ -24,29 +26,51 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Welcome Section */}
-        <section className="py-20 text-center bg-[#c6a998] text-white">
-          <div className="max-w-4xl mx-auto px-4">
-            <div className="grid sm:grid-cols-2 gap-8 items-center">
-              <Image
-                src="/product-4.png"
-                alt="Welcome"
-                width={350}
-                height={450}
-                className="rounded-lg mx-auto"
-              />
-              <div>
-                <h2 className="text-4xl font-elegant mb-4">Welcome</h2>
-                <p className="text-base mb-6">
-                  Pair text with an image to focus on your chosen product,
-                  collection, or blog post. Add details on availability, style,
-                  or even provide a review.
-                </p>
-                <Button variant="outline">OUR MISSION</Button>
-              </div>
-            </div>
-          </div>
-        </section>
+       
+  {/* Category Navigation Section */}
+<section className="py-20 bg-[#f6f2ef] text-center">
+  <h2 className="text-4xl font-elegant mb-12 text-[#1c1c1c]">Browse Categories</h2>
+  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6 max-w-6xl mx-auto px-6">
+    {/* CATEGORY ITEM */}
+    <Link href="/pants" className="flex flex-col items-center group">
+      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden shadow-md group-hover:scale-105 transition">
+        <Image src="/categories/pants.jpg" alt="Pants" width={112} height={112} className="object-cover w-full h-full" />
+      </div>
+      <span className="mt-2 text-sm font-medium text-[#1c1c1c] group-hover:text-[#7e6dc5] transition">Pants</span>
+    </Link>
+
+    <Link href="/basics" className="flex flex-col items-center group">
+      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden shadow-md group-hover:scale-105 transition">
+        <Image src="/categories/basics.jpg" alt="Basics" width={112} height={112} className="object-cover w-full h-full" />
+      </div>
+      <span className="mt-2 text-sm font-medium text-[#1c1c1c] group-hover:text-[#7e6dc5] transition">Basics</span>
+    </Link>
+
+    <Link href="/shirts" className="flex flex-col items-center group">
+      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden shadow-md group-hover:scale-105 transition">
+        <Image src="/categories/shirts.jpg" alt="Shirts" width={112} height={112} className="object-cover w-full h-full" />
+      </div>
+      <span className="mt-2 text-sm font-medium text-[#1c1c1c] group-hover:text-[#7e6dc5] transition">Shirts</span>
+    </Link>
+
+    <Link href="/dresses" className="flex flex-col items-center group">
+      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden shadow-md group-hover:scale-105 transition">
+        <Image src="/categories/dresses.jpg" alt="Dresses" width={112} height={112} className="object-cover w-full h-full" />
+      </div>
+      <span className="mt-2 text-sm font-medium text-[#1c1c1c] group-hover:text-[#7e6dc5] transition">Dresses</span>
+    </Link>
+
+    <Link href="/accessories" className="flex flex-col items-center group">
+      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden shadow-md group-hover:scale-105 transition">
+        <Image src="/categories/accessories.jpg" alt="Accessories" width={112} height={112} className="object-cover w-full h-full" />
+      </div>
+      <span className="mt-2 text-sm font-medium text-[#1c1c1c] group-hover:text-[#7e6dc5] transition">Accessories</span>
+    </Link>
+  </div>
+</section>
+
+
+
 
         {/* Product Grid */}
         <section className="bg-[#f9f7f4] py-20 px-6">

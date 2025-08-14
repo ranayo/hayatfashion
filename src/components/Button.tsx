@@ -2,9 +2,15 @@ type ButtonProps = {
   children: React.ReactNode;
   onClick?: () => void;
   variant?: "primary" | "outline";
+  className?: string; // ✅ הוספה כדי למנוע שגיאת TypeScript
 };
 
-export default function Button({ children, onClick, variant = "primary" }: ButtonProps) {
+export default function Button({
+  children,
+  onClick,
+  variant = "primary",
+  className = "",
+}: ButtonProps) {
   const base = "px-6 py-2 rounded-full font-semibold transition";
   const styles =
     variant === "primary"
@@ -12,7 +18,7 @@ export default function Button({ children, onClick, variant = "primary" }: Butto
       : "bg-white text-[#c8a18d] border border-[#c8a18d] hover:bg-[#c8a18d] hover:text-white";
 
   return (
-    <button onClick={onClick} className={`${base} ${styles}`}>
+    <button onClick={onClick} className={`${base} ${styles} ${className}`}>
       {children}
     </button>
   );
