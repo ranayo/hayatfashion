@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+
 export default function Header() {
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-transparent backdrop-blur-sm">
@@ -26,6 +27,8 @@ export default function Header() {
           <Link href="/about" className="hover:text-[#dbcfc7] transition">About</Link>
           <Link href="/login" className="hover:text-[#c8a18d] transition">Login</Link>
             <Link href="/signup" className="hover:text-[#c8a18d] transition">Signup</Link>
+            <Link href="/admin" className="text-sm underline">Admin</Link>
+            <Link href="/cart" className="text-sm hover:underline">Cart</Link>
 
         </nav>
       </div>

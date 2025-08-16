@@ -1,46 +1,22 @@
-'use client'
+import { db } from "@/firebase";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { Product } from "@/types";
+import ProductCard from "@/components/ProductCard";
 
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { useEffect, useState } from "react";
-
-type Product = {
-  id: string;
-  title: string;
-  price: number;
-  description: string; 
-  imageUrls: string[];
-  sizes: string[];
-  colors: string[];
-};
-
-export default function PantsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-
-  useEffect(() => {
-    async function fetchProducts() {
-      const snapshot = await getDocs(collection(db, "products"));
-      const filtered = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter((item: any) => item.category?.toLowerCase() === "pants");
-      setProducts(filtered as Product[]);
-    }
-
-    fetchProducts();
-  }, []);
+export default async function PantsPage() {
+  const q = query(collection(db, "products"), where("category", "==", "pants"));
+  const snapshot = await getDocs(q);
+  const products = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Product[];
 
   return (
-    <main className="p-8">
-      <h1 className="text-3xl font-bold mb-6">מכנסיים</h1>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {products.map((product) => (
-          <div key={product.id} className="bg-white p-4 rounded-xl shadow">
-            <img src={product.imageUrls[0]} alt={product.title} className="w-full h-64 object-cover rounded-md" />
-            <h2 className="mt-2 font-semibold">{product.description}</h2>
-            <p className="text-gray-700">{product.price} ₪</p>
-            <p className="text-sm text-gray-500">מידות: {product.sizes.join(", ")}</p>
-            <p className="text-sm text-gray-500">צבעים: {product.colors.join(", ")}</p>
-          </div>
+    <main className="min-h-screen bg-[#f6f2ef] px-4 md:px-6 py-10">
+      <h1 className="text-3xl md:text-4xl font-semibold text-center mb-10 text-[#4b3a2f]">
+        Pants Collection
+      </h1>
+
+      <div className="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {products.map((p) => (
+          <ProductCard key={p.id} product={p} />
         ))}
       </div>
     </main>
