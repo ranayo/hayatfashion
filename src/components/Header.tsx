@@ -17,15 +17,16 @@ export default function Header() {
           <span className="text-xl font-bold text-white">HAYATFASHION</span>
         </div>
 
+
         {/* Navigation */}
         <nav
           className="hidden md:flex space-x-8 text-sm font-medium text-white"
           aria-label="Main navigation"
         >
-          <Link href="/women" className="hover:text-[#dbcfc7] transition">Women</Link>
-          <Link href="/accessories" className="hover:text-[#dbcfc7] transition">Accessories</Link>
-          <Link href="/sale" className="hover:text-[#dbcfc7] transition">Sale</Link>
           <Link href="/about" className="hover:text-[#dbcfc7] transition">About</Link>
+          <Link href="/login" className="hover:text-[#c8a18d] transition">Login</Link>
+            <Link href="/signup" className="hover:text-[#c8a18d] transition">Signup</Link>
+
         </nav>
       </div>
     </header>
