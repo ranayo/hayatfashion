@@ -1,27 +1,70 @@
-import { notFound } from "next/navigation";
-import Image from "next/image";
-import { getProductById } from "@/firebase/products";
+// app/category/[category]/[id]/page.tsx
+import { db } from "@/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { Product } from "@/types";
 import AddToCartClient from "@/components/AddToCartClient";
-import type { Product } from "@/types";
 
-export default async function ProductPage({ params }: { params: {category:string; id:string} }) {
-  const product = (await getProductById(params.id)) as Product | null;
-  if (!product || product.category !== params.category) return notFound();
+type Props = {
+  params: { category: string; id: string };
+};
+
+export default async function ProductDetailPage({ params }: Props) {
+  const { id } = params;
+
+  const ref = doc(db, "products", id);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    return <div className="p-10 text-center text-gray-500">Product not found.</div>;
+  }
+
+  const product = { id: snap.id, ...snap.data() } as Product;
 
   return (
-    <main className="min-h-screen bg-[#f6f2ef] px-4 md:px-6 py-8">
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 bg-white p-6 rounded-2xl shadow">
-        <div className="relative w-full h-[560px] rounded-lg overflow-hidden">
-          <Image src={product.images[0]} alt={product.title} fill className="object-cover" />
-        </div>
-        <section>
-          <h1 className="text-2xl md:text-3xl font-semibold text-[#3f2f26]">{product.title}</h1>
-          <div className="mt-2 flex items-baseline gap-3">
-            <div className="text-2xl font-bold text-[#4b3a2f]">₪{(product.salePrice ?? product.price).toFixed(2)}</div>
-            {product.salePrice && <div className="text-gray-400 line-through">₪{product.price.toFixed(2)}</div>}
+    <main className="min-h-screen bg-[#f6f2ef] px-4 md:px-6 py-10">
+      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10">
+        {/* תמונות */}
+        <div>
+          <img
+            src={product.images?.[0] ?? "/no-image.png"}
+            alt={product.title}
+            className="w-full rounded-xl shadow"
+          />
+          <div className="flex gap-2 mt-4">
+            {product.images?.slice(1).map((img, i) => (
+              <img
+                key={i}
+                src={img}
+                alt={`${product.title} image ${i + 2}`}
+                className="w-20 h-20 object-cover rounded border"
+              />
+            ))}
           </div>
+        </div>
+
+        {/* פרטי מוצר */}
+        <div>
+          <h1 className="text-3xl font-semibold text-[#4b3a2f] mb-4">{product.title}</h1>
+          <p className="text-lg text-gray-700 mb-4">{product.description}</p>
+
+          <div className="mb-4">
+            {product.salePrice ? (
+              <>
+                <span className="text-2xl font-bold text-red-600 mr-3">
+                  ₪{product.salePrice.toFixed(2)}
+                </span>
+                <span className="text-lg line-through text-gray-500">
+                  ₪{product.price.toFixed(2)}
+                </span>
+              </>
+            ) : (
+              <span className="text-2xl font-bold">₪{product.price.toFixed(2)}</span>
+            )}
+          </div>
+
+          {/* כפתור הוספה לעגלה */}
           <AddToCartClient product={product} />
-        </section>
+        </div>
       </div>
     </main>
   );

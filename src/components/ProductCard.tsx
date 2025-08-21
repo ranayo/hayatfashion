@@ -6,8 +6,22 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Product, SizeOption } from "@/types";
-import { auth } from "@/firebase";
 import { addToCart } from "@/lib/cart";
+
+function colorClass(c: string | null | undefined) {
+  if (!c) return "bg-gray-300";
+  const v = c.trim().toLowerCase();
+  if (["black", "#000", "שחור"].includes(v)) return "bg-black";
+  if (["white", "#fff", "לבן"].includes(v)) return "bg-white";
+  if (["beige", "#f5f5dc"].includes(v)) return "bg-amber-100";
+  if (["brown", "#6b4f3a"].includes(v)) return "bg-amber-800";
+  if (["cream", "קרם"].includes(v)) return "bg-orange-100";
+  if (["gray", "grey", "#808080", "אפור"].includes(v)) return "bg-gray-400";
+  if (["navy", "blue", "כחול"].includes(v)) return "bg-blue-600";
+  if (["green", "ירוק"].includes(v)) return "bg-green-600";
+  if (["red", "בורדו", "wine", "maroon"].includes(v)) return "bg-red-700";
+  return "bg-gray-300";
+}
 
 type Props = { product: Product };
 
@@ -16,28 +30,29 @@ export default function ProductCard({ product }: Props) {
   const [loading, setLoading] = useState(false);
 
   async function handleAdd() {
-    const user = auth.currentUser;
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-
     const firstInStock =
       product.sizes.find((s: SizeOption) => s.stock > 0)?.size ?? null;
 
     setLoading(true);
     try {
-      await addToCart(user.uid, {
+      await addToCart({
         productId: product.id,
         title: product.title,
         price: product.salePrice ?? product.price,
-        image: product.images?.[0],
+        image: product.images?.[0] ?? null,
         category: product.category,
         size: firstInStock,
         color: product.colors?.[0] ?? null,
         qty: 1,
       });
       alert("Added to cart ✅");
+    } catch (e: any) {
+      if (e?.message === "LOGIN_REQUIRED") {
+        router.push("/login");
+      } else {
+        console.error(e);
+        alert("Failed to add to cart");
+      }
     } finally {
       setLoading(false);
     }
@@ -45,12 +60,12 @@ export default function ProductCard({ product }: Props) {
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition">
-      {/* לינק לדף המוצר */}
       <Link
         href={`/category/${product.category}/${product.id}`}
         className="block group"
+        aria-label={`Open ${product.title} details`}
       >
-        <div className="relative w-full h-56"> {/* הקטנתי מ-h-64 ל-h-56 */}
+        <div className="relative w-full h-56">
           <Image
             src={product.images[0]}
             alt={product.title}
@@ -76,13 +91,13 @@ export default function ProductCard({ product }: Props) {
           )}
         </p>
 
-        <div className="flex gap-2 mt-2">
-          {product.colors?.slice(0, 5).map((color: string) => (
+        <div className="flex gap-2 mt-2" role="group" aria-label="Available colors">
+          {product.colors?.slice(0, 5).map((c: string) => (
             <span
-              key={color}
-              className="w-4 h-4 rounded-full border"
-              style={{ backgroundColor: color.toLowerCase() }}
-              title={color}
+              key={c}
+              className={`w-4 h-4 rounded-full border ${colorClass(c)}`}
+              title={c}
+              aria-label={`Color ${c}`}
             />
           ))}
         </div>
