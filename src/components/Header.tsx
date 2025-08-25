@@ -2,12 +2,28 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart } from "lucide-react"; // ← אייקון עגלה
+import { ShoppingCart } from "lucide-react";
 import useCart from "@/hooks/useCart";
+import { useEffect, useState } from "react";
 
 export default function Header() {
   const { items } = useCart();
   const count = items.reduce((sum, it) => sum + it.qty, 0);
+
+  const [loggedInEmail, setLoggedInEmail] = useState<string | null>(null);
+
+  // בדיקה אם המשתמש מחובר
+  useEffect(() => {
+    const email = localStorage.getItem("hayat_logged_in");
+    if (email) {
+      setLoggedInEmail(email);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("hayat_logged_in");
+    window.location.reload();
+  };
 
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-transparent backdrop-blur-sm">
@@ -26,18 +42,36 @@ export default function Header() {
 
         {/* Navigation */}
         <nav
-          className="hidden md:flex space-x-8 text-sm font-medium text-white"
+          className="hidden md:flex space-x-8 text-sm font-medium text-white items-center"
           aria-label="Main navigation"
         >
           <Link href="/about" className="hover:text-[#dbcfc7] transition">
             About
           </Link>
-          <Link href="/login" className="hover:text-[#c8a18d] transition">
-            Login
-          </Link>
-          <Link href="/signup" className="hover:text-[#c8a18d] transition">
-            Signup
-          </Link>
+
+          {loggedInEmail ? (
+            <>
+              <span className="text-xs text-[#f0e7e0]">
+                👋 {loggedInEmail}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="text-sm px-4 py-1 border border-[#c8a18d] rounded-full hover:bg-[#c8a18d] hover:text-white transition"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="hover:text-[#c8a18d] transition">
+                Login
+              </Link>
+              <Link href="/signup" className="hover:text-[#c8a18d] transition">
+                Signup
+              </Link>
+            </>
+          )}
+
           <Link href="/admin" className="text-sm underline">
             Admin
           </Link>
