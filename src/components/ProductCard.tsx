@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Product, SizeOption } from "@/types";
 import { addToCart } from "@/lib/cart";
+import { auth } from "@/firebase";
+import { toast } from "sonner";
 
 function colorClass(c: string | null | undefined) {
   if (!c) return "bg-gray-300";
@@ -29,9 +31,24 @@ export default function ProductCard({ product }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
+  // ✅ fallback לתמונה במקרה של URL שגוי/חסום
+  const [imgSrc, setImgSrc] = useState<string>(
+    product.images?.[0] ?? "/no-image.png"
+  );
+
+  const catSlug = String(product.category || "").toLowerCase();
+
   async function handleAdd() {
-    const firstInStock =
-      product.sizes.find((s: SizeOption) => s.stock > 0)?.size ?? null;
+    const sizeInStock: string | null =
+      product.sizes?.find((s: SizeOption) => (s?.stock ?? 0) > 0)?.size ?? null;
+
+    const color: string | null = product.colors?.[0] ?? null;
+
+    if (!auth.currentUser) {
+      toast.error("יש להתחבר כדי להוסיף לעגלה");
+      router.push("/login");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -39,19 +56,23 @@ export default function ProductCard({ product }: Props) {
         productId: product.id,
         title: product.title,
         price: product.salePrice ?? product.price,
-        image: product.images?.[0] ?? null,
-        category: product.category,
-        size: firstInStock,
-        color: product.colors?.[0] ?? null,
+        image: imgSrc || null,
+        category: catSlug,
+        size: sizeInStock,
+        color,
         qty: 1,
       });
-      alert("Added to cart ✅");
+      toast.success("הפריט נוסף לעגלה");
     } catch (e: any) {
-      if (e?.message === "LOGIN_REQUIRED") {
+      const msg = String(e?.message || e);
+      if (msg.includes("LOGIN_REQUIRED")) {
         router.push("/login");
+        toast.error("יש להתחבר כדי להוסיף לעגלה");
+      } else if (msg.toLowerCase().includes("permission")) {
+        toast.error("אין הרשאה לעדכן עגלה. ודאי שהתחברת והמייל מאומת.");
       } else {
         console.error(e);
-        alert("Failed to add to cart");
+        toast.error("שגיאה בהוספה לעגלה");
       }
     } finally {
       setLoading(false);
@@ -61,32 +82,35 @@ export default function ProductCard({ product }: Props) {
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition">
       <Link
-        href={`/category/${product.category}/${product.id}`}
+        href={`/category/${catSlug}/${product.id}`}
         className="block group"
         aria-label={`Open ${product.title} details`}
       >
         <div className="relative w-full h-56">
           <Image
-            src={product.images[0]}
+            src={imgSrc}
             alt={product.title}
             fill
+            sizes="(max-width: 768px) 100vw, 33vw"
             className="object-cover group-hover:scale-105 transition"
+            onError={() => setImgSrc("/no-image.png")}
+            priority={false}
           />
         </div>
       </Link>
 
       <div className="p-4">
-        <Link href={`/category/${product.category}/${product.id}`}>
+        <Link href={`/category/${catSlug}/${product.id}`}>
           <h3 className="text-base font-semibold text-[#3f2f26] line-clamp-1">
             {product.title}
           </h3>
         </Link>
 
         <p className="mt-1 text-[#4b3a2f] font-bold">
-          ₪{(product.salePrice ?? product.price).toFixed(2)}
+          ₪{Number(product.salePrice ?? product.price).toFixed(2)}
           {product.salePrice && (
             <span className="ml-2 text-sm text-gray-400 line-through">
-              ₪{product.price.toFixed(2)}
+              ₪{Number(product.price).toFixed(2)}
             </span>
           )}
         </p>

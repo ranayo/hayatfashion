@@ -1,8 +1,16 @@
-import type { NextConfig } from 'next';
+// next.config.ts
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    domains: ['firebasestorage.googleapis.com'],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "firebasestorage.googleapis.com",
+        port: "",
+        pathname: "/v0/b/**", // מכסה את כל הנתיבים של Firebase Storage
+      },
+    ],
   },
 };
 
