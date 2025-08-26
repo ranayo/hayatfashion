@@ -1,101 +1,57 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { db, storage } from '@/firebase';
-import { addDoc, collection } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { auth } from "@/firebase";
+import { toast } from "sonner";
 
-const categories = ['pants', 'shirts', 'dresses', 'basics', 'accessories'];
-const sizes = ['S', 'M', 'L', 'XL'];
-const colors = ['BLACK', 'WHITE', 'GRAY', 'BEIGE', 'BLUE', 'PINK'];
+const admins = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "")
+  .split(",")
+  .map(s => s.trim().toLowerCase())
+  .filter(Boolean);
 
-export default function AdminPage() {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('pants');
-  const [price, setPrice] = useState('');
-  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
-  const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
+export default function AdminDashboard() {
+  const [ok, setOk] = useState(false);
 
-  const handleCheckbox = (value: string, list: string[], setter: any) => {
-    if (list.includes(value)) {
-      setter(list.filter(item => item !== value));
-    } else {
-      setter([...list, value]);
+  useEffect(() => {
+    const u = auth.currentUser;
+    if (!u) {
+      toast.error("התחברי כדי להיכנס לאדמין");
+      setOk(false);
+      return;
     }
-  };
-
-  const handleSubmit = async () => {
-    if (!title || !description || !price || !imageFile) return alert('All fields are required!');
-    try {
-      setLoading(true);
-      const imageRef = ref(storage, `products/${imageFile.name}`);
-      await uploadBytes(imageRef, imageFile);
-      const imageURL = await getDownloadURL(imageRef);
-
-      await addDoc(collection(db, 'products'), {
-        title,
-        description,
-        category,
-        price: parseFloat(price),
-        sizes: selectedSizes,
-        colors: selectedColors,
-        images: [imageURL],
-        isActive: true,
-        createdAt: Date.now(),
-      });
-
-      alert('Product added!');
-      setTitle(''); setDescription(''); setPrice('');
-      setSelectedSizes([]); setSelectedColors([]); setImageFile(null);
-    } catch (err) {
-      console.error(err);
-      alert('Error adding product');
-    } finally {
-      setLoading(false);
+    const email = (u.email || "").toLowerCase();
+    if (!admins.includes(email)) {
+      toast.error("אין הרשאה לאדמין");
+      setOk(false);
+      return;
     }
-  };
+    setOk(true);
+  }, []);
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Add New Product</h1>
+    <main className="min-h-screen bg-[#f6f2ef] px-4 py-10">
+      <h1 className="text-3xl font-semibold text-center mb-8 text-[#4b3a2f]">
+        Admin Dashboard
+      </h1>
 
-      <input placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} className="input mb-2 w-full" />
-      <textarea placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} className="input mb-2 w-full" />
-      <input placeholder="Price" value={price} onChange={e => setPrice(e.target.value)} type="number" className="input mb-2 w-full" />
+      <div className="max-w-3xl mx-auto grid sm:grid-cols-2 gap-4">
+        <Link href="/admin/products" className="rounded-xl bg-white p-6 shadow hover:shadow-md transition">
+          <div className="text-[#3f2f26] font-semibold">ניהול מוצרים</div>
+          <div className="text-gray-600 text-sm mt-1">רשימה, חיפוש, פעולה מהירה</div>
+        </Link>
 
-      <label className="block mt-2">Category</label>
-      <select value={category} onChange={e => setCategory(e.target.value)} className="input mb-2 w-full">
-        {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-      </select>
-
-      <label className="block mt-2">Sizes</label>
-      <div className="flex flex-wrap gap-2 mb-2">
-        {sizes.map(size => (
-          <label key={size} className="flex items-center gap-1">
-            <input type="checkbox" checked={selectedSizes.includes(size)} onChange={() => handleCheckbox(size, selectedSizes, setSelectedSizes)} />
-            {size}
-          </label>
-        ))}
+        <Link href="/admin/products/new" className="rounded-xl bg-white p-6 shadow hover:shadow-md transition">
+          <div className="text-[#3f2f26] font-semibold">הוספת מוצר חדש</div>
+          <div className="text-gray-600 text-sm mt-1">טופס יצירה</div>
+        </Link>
       </div>
 
-      <label className="block mt-2">Colors</label>
-      <div className="flex flex-wrap gap-2 mb-2">
-        {colors.map(color => (
-          <label key={color} className="flex items-center gap-1">
-            <input type="checkbox" checked={selectedColors.includes(color)} onChange={() => handleCheckbox(color, selectedColors, setSelectedColors)} />
-            {color}
-          </label>
-        ))}
-      </div>
-
-      <input type="file" onChange={e => setImageFile(e.target.files?.[0] || null)} className="mb-4" />
-
-      <button onClick={handleSubmit} disabled={loading} className="bg-[#c8a18d] text-white rounded-full px-6 py-2">
-        {loading ? 'Adding...' : 'Add Product'}
-      </button>
-    </div>
+      {!ok && (
+        <p className="text-center text-gray-500 mt-6">
+          כניסה מותרת לאדמינים בלבד.
+        </p>
+      )}
+    </main>
   );
 }

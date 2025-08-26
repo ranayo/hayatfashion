@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "sonner"; // ✅ נוספה התמיכה בטוסטים
+import { Toaster } from "sonner";
+import CartBadge from "@/components/CartBadge"; // ✅ באדג' עגלה
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,11 +25,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <Toaster richColors position="top-center" /> {/* ✅ תצוגת טוסטים */}
+    <html lang="en" dir="rtl">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#f6f2ef]`}>
+        {/* 🔔 טוסטים לכל האפליקציה */}
+        <Toaster richColors position="top-center" />
+
+        {/* 🧭 Header מינימלי: לוגו + CartBadge */}
+        <header className="sticky top-0 z-40 bg-[#f6f2ef]/80 backdrop-blur border-b border-[#e8e0db]">
+          <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+            <a href="/" className="text-[#4b3a2f] font-semibold text-lg">
+              HAYATFASHION
+            </a>
+            <div className="flex items-center gap-3">
+              {/* כאן אפשר להוסיף כפתורי Login/Logout בעתיד */}
+              <CartBadge />
+            </div>
+          </div>
+        </header>
+
+        {/* 🌯 תוכן העמודים */}
         {children}
       </body>
     </html>
