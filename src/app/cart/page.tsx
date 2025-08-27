@@ -14,10 +14,6 @@ import Link from "next/link";
 import type { CartItem } from "@/lib/cart";
 import { useRouter } from "next/navigation";
 
-function keyOf(item: Pick<CartItem, "productId" | "size" | "color">) {
-  return [item.productId, item.size ?? "-", item.color ?? "-"].join("__");
-}
-
 export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
   const router = useRouter();
@@ -37,7 +33,7 @@ export default function CartPage() {
 
   async function updateQty(item: CartItem, qty: number) {
     if (!auth.currentUser) return;
-    const ref = doc(db, "users", auth.currentUser.uid, "cart", keyOf(item));
+    const ref = doc(db, "users", auth.currentUser.uid, "cart", `${item.productId}__${item.size ?? "-"}__${item.color ?? "-"}`);
     if (qty <= 0) {
       await deleteDoc(ref);
     } else {
@@ -47,7 +43,7 @@ export default function CartPage() {
 
   async function removeItem(item: CartItem) {
     if (!auth.currentUser) return;
-    const ref = doc(db, "users", auth.currentUser.uid, "cart", keyOf(item));
+    const ref = doc(db, "users", auth.currentUser.uid, "cart", `${item.productId}__${item.size ?? "-"}__${item.color ?? "-"}`);
     await deleteDoc(ref);
   }
 
@@ -72,7 +68,7 @@ export default function CartPage() {
             <ul className="divide-y">
               {items.map((it) => (
                 <li
-                  key={`${it.productId}__${it.size ?? "-"}__${it.color ?? "-"}`}
+                  key={`${it.productId}-${it.size}-${it.color}`}
                   className="py-4 flex gap-4 items-center"
                 >
                   {it.image && (
