@@ -11,6 +11,7 @@ import {
   deleteDoc,
   onSnapshot,
   serverTimestamp,
+  getFirestore,
 } from "firebase/firestore";
 
 /** מודל פריט בסל */
@@ -27,14 +28,14 @@ export type CartItem = {
 };
 
 /** מזהה יחודי לפי מוצר+מידה+צבע (כדי לאחד פריטים דומים) */
-export function keyOf(item: Pick<CartItem, "productId" | "size" | "color">) {
+function keyOf(item: Pick<CartItem, "productId" | "size" | "color">) {
   return [item.productId, item.size ?? "-", item.color ?? "-"].join("__");
 }
 
 /** דואג ל-user id: אם לא הועבר uid כפראמטר – נשתמש במשתמש המחובר */
 function ensureUid(uid?: string) {
   if (uid) return uid;
-  const u = auth.currentUser;
+  const u = (auth as any).currentUser as { uid: string } | null;
   if (!u) throw new Error("LOGIN_REQUIRED");
   return u.uid;
 }
@@ -42,27 +43,22 @@ function ensureUid(uid?: string) {
 /** 🔼 הוספה לסל (אם קיים – מעלה כמות) */
 export async function addToCart(item: CartItem, uid?: string) {
   const theUid = ensureUid(uid);
-  const cartCol = collection(doc(collection(db, "users"), theUid), "cart");
+  const cartCol = collection(db, "users", theUid, "cart");
   const id = keyOf(item);
   const ref = doc(cartCol, id);
 
-  try {
-    const snap = await getDoc(ref);
-    if (snap.exists()) {
-      await updateDoc(ref, {
-        qty: increment(item.qty || 1),
-        updatedAt: serverTimestamp(),
-      });
-    } else {
-      await setDoc(ref, {
-        ...item,
-        qty: item.qty || 1,
-        updatedAt: serverTimestamp(),
-      });
-    }
-  } catch (e) {
-    console.error("addToCart error:", e);
-    throw e;
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    await updateDoc(ref, {
+      qty: increment(item.qty || 1),
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    await setDoc(ref, {
+      ...item,
+      qty: item.qty || 1,
+      updatedAt: serverTimestamp(),
+    });
   }
 }
 
@@ -92,6 +88,22 @@ export async function removeFromCart(
   await deleteDoc(doc(db, "users", theUid, "cart", id));
 }
 
+export async function updateCartQty(
+  uid: string,
+  item: Pick<CartItem, "productId" | "size" | "color">,
+  qty: number
+) {
+  const id = keyOf(item);
+  const ref = doc(db, "users", uid, "cart", id);
+
+  if (qty <= 0) {
+    await deleteDoc(ref);
+  } else {
+    await updateDoc(ref, { qty });
+  }
+}
+
+
 /** 🔔 האזנה חיה לסל של המשתמש (UI יתעדכן אוטומטית) */
 export function listenToCart(
   cb: (items: Array<{ id: string; data: CartItem }>) => void,
@@ -111,9 +123,4 @@ export function listenToCart(
     // לא מחובר? לא מאזינים
     return () => {};
   }
-}
-
-/** 🧮 חישוב סה״כ מחיר */
-export function sumTotal(items: Array<{ data: CartItem }>) {
-  return items.reduce((s, it) => s + (it.data.price || 0) * (it.data.qty || 0), 0);
 }

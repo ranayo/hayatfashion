@@ -32,17 +32,19 @@ export default function AboutPage() {
           </h1>
 
           <p className="mt-4 text-[17px] leading-8 text-[#574c47] max-w-3xl mx-auto animate-fade-up [animation-delay:.15s]">
-            היי, אנחנו <b>HAYATFASHION</b> — בית לאופנה נשית אלגנטית ונעימה.
-            אנחנו מאמינות ביופי שהוא יומיומי ונוח, בעיצובים שמחבקים ביטחון ושמרגישים “בדיוק את”.
-            כל פריט אצלנו נבחר בקפידה, בגזרות מחמיאות וחומרים נעימים שאוהבים ללבוש שוב ושוב.
+            Hi, we’re <b>HAYATFASHION</b> — a home for effortless, feminine style.
+            We believe in everyday beauty: pieces that feel good, fit beautifully,
+            and let you be confidently yourself. Every item is thoughtfully
+            selected for flattering cuts, soft textures, and timeless neutrals
+            you’ll love reaching for again and again.
           </p>
 
           <div className="mt-8 flex justify-center gap-4 animate-fade-up [animation-delay:.25s]">
             <a href="/women" className="inline-block">
-              <Button>לגלות את הקולקציה</Button>
+              <Button>Discover the Collection</Button>
             </a>
             <a href="/sale" className="inline-block">
-              <Button variant="outline">מבצעים חמים</Button>
+              <Button variant="outline">Hot Offers</Button>
             </a>
           </div>
         </section>
@@ -50,25 +52,26 @@ export default function AboutPage() {
         {/* 3 CARDS */}
         <section className="max-w-6xl mx-auto px-6 mt-16 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <article className="bg-[#f9f7f4] rounded-2xl shadow hover:shadow-lg transition p-6 animate-fade-up">
-            <h3 className="text-xl font-elegant mb-2">מה חשוב לנו</h3>
+            <h3 className="text-xl font-elegant mb-2">What We Value</h3>
             <p className="text-[#574c47] leading-7">
-              פריטים שמרגישים טוב על הגוף ונראים מעולה.
-              איכות שאת מרגישה במגע, וגוונים אלגנטיים שמרככים כל מראה.
+              Clothing that looks polished and feels gentle on the skin.
+              Quality you can sense, in calming, elegant tones that soften every look.
             </p>
           </article>
 
           <article className="bg-[#f9f7f4] rounded-2xl shadow hover:shadow-lg transition p-6 animate-fade-up [animation-delay:.1s]">
-            <h3 className="text-xl font-elegant mb-2">איך אנחנו בוחרות</h3>
+            <h3 className="text-xl font-elegant mb-2">How We Curate</h3>
             <p className="text-[#574c47] leading-7">
-              הקולקציות שלנו נאספות בהשראה עולמית, תוך מחשבה על יומיום אמיתי:
-              עבודה, לימודים, אירועים — ושאר הרגעים שביניהם.
+              Our collections are globally inspired and made for real life:
+              work, study, special moments — and everything in between.
             </p>
           </article>
 
           <article className="bg-[#f9f7f4] rounded-2xl shadow hover:shadow-lg transition p-6 animate-fade-up [animation-delay:.2s]">
-            <h3 className="text-xl font-elegant mb-2">אנחנו כאן בשבילך</h3>
+            <h3 className="text-xl font-elegant mb-2">Here for You</h3>
             <p className="text-[#574c47] leading-7">
-              יש שאלה על מידה? צריך התאמה לסטייל? דברי איתנו — נשמח לעזור ולבנות עבורך לוק מושלם.
+              Not sure about sizing? Need styling advice? We’re happy to help
+              and put together a look that feels perfectly you.
             </p>
           </article>
         </section>
@@ -84,17 +87,15 @@ export default function AboutPage() {
 
         {/* CONTACT / CTA */}
         <section className="max-w-4xl mx-auto px-6 mt-16 text-center animate-fade-up">
-          <h2 className="text-2xl font-elegant mb-3">בואי נדבר</h2>
+          <h2 className="text-2xl font-elegant mb-3">Let’s Talk</h2>
           <p className="text-[#574c47] mb-6">
-            צריכה המלצה או התאמה אישית? נשמח לשמוע ממך.
+            Need a recommendation or a personalized fit? We’re one message away.
           </p>
-          <a href="mailto:hello@hayatfashion.example">
-            <Button>צרי קשר</Button>
+          <a href="mailto:hayatfashion402@gmail.com">
+            <Button>Contact Us</Button>
           </a>
         </section>
       </main>
     </>
   );
 }
-
-

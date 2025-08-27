@@ -3,9 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import emailjs from "@emailjs/browser";
-import { toast } from "sonner";
-import { fetchSignInMethodsForEmail } from "firebase/auth";
-import { auth } from "@/firebase"; // הקליינט של Firebase שלך (כרגיל)
 
 export default function SignupPage() {
   const router = useRouter();
@@ -23,34 +20,12 @@ export default function SignupPage() {
   const generateOTP = () =>
     Math.floor(100000 + Math.random() * 900000).toString();
 
-  // שליחת OTP — רק אם האימייל לא קיים כבר (מקומי או Firebase)
   const handleSendOTP = async () => {
     if (!email) {
-      toast.error("📩 יש להזין כתובת אימייל");
+      alert("📩 יש להזין כתובת אימייל");
       return;
     }
 
-    // 1) בדיקה ברשימה המקומית (מי שכבר עשה אצלך OTP בעבר)
-    const localUsers = JSON.parse(localStorage.getItem("hayatfashion_users") || "[]");
-    if (localUsers.includes(email)) {
-      toast.error("⚠️ כתובת מייל זו כבר רשומה. בצעי Login במקום.");
-      return;
-    }
-
-    // 2) בדיקה מול Firebase Authentication (מי שכבר קיים שם, למשל דרך Google)
-    try {
-      const methods = await fetchSignInMethodsForEmail(auth, email);
-      if (methods.length > 0) {
-        toast.error("⚠️ כתובת מייל זו כבר קיימת ב-Firebase. בצעי Login במקום.");
-        return;
-      }
-    } catch (error) {
-      console.error("שגיאה בבדיקת אימייל ב-Firebase:", error);
-      toast.error("⚠️ שגיאה בגישה לשרת. נסי שוב מאוחר יותר");
-      return;
-    }
-
-    // שליחת קוד
     const otpCode = generateOTP();
     setOtp(otpCode);
 
@@ -66,69 +41,50 @@ export default function SignupPage() {
         "IhxqkYmoeZF4p4mZy"
       );
 
-      toast.success("✅ קוד אימות נשלח למייל");
+      alert("✅ קוד אימות נשלח למייל");
       setShowOtpInput(true);
     } catch (error) {
-      console.error("❌ שגיאה בשליחת קוד אימות:", error);
-      toast.error("⚠️ שגיאה בשליחת קוד. ודאי שהפרטים נכונים");
+      console.error("❌ שגיאה בשליחת קוד אימות:", JSON.stringify(error));
+      alert("⚠️ שגיאה בשליחת קוד. ודאי שהפרטים נכונים");
     }
   };
 
-  // אימות ה-OTP ויצירת המשתמש ב-Firebase Auth דרך ה-API
   const handleVerifyOTP = async () => {
-    if (userOtp !== otp) {
-      toast.error("❌ קוד שגוי. נסי שוב");
-      return;
-    }
+    if (userOtp === otp) {
+      alert("✅ אימות הצליח! ברוכה הבאה");
 
-    // 1) יצירת/אישור המשתמש ב-Firebase Authentication (צד שרת)
-    try {
-      const res = await fetch("/api/create-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        throw new Error(data.error || "create-user-failed");
+      // ✅ הוספה לרשימת המשתמשים
+      const users = JSON.parse(localStorage.getItem("hayatfashion_users") || "[]");
+      if (!users.includes(email)) {
+        users.push(email);
+        localStorage.setItem("hayatfashion_users", JSON.stringify(users));
       }
-      // data.status: "created" | "exists" — לשיקולך אם להראות הודעה שונה
-    } catch (error) {
-      console.error("❌ יצירת משתמש ב-Firebase נכשלה:", error);
-      toast.error("⚠️ בעיית שרת בהרשמה. נסי שוב מאוחר יותר");
-      return; // מונע המשך אם חשוב
+
+      try {
+        await emailjs.send(
+          "service_j99xu9j",
+          "template_m7jzwj6",
+          {
+            email: email,
+            user_name: email.split("@")[0],
+          },
+          "IhxqkYmoeZF4p4mZy"
+        );
+        console.log("📬 הודעת ברוכה הבאה נשלחה");
+
+        // שמירת המשתמש כמחובר
+        localStorage.setItem("hayat_logged_in", email);
+        setIsLoggedIn(true);
+        setShowOtpInput(false);
+        setUserOtp("");
+        setOtp("");
+        alert("🎉 ברוכה הבאה! את מחוברת כעת");
+      } catch (error) {
+        console.error("❌ שגיאה בשליחת הודעת ברוכה הבאה:", error);
+      }
+    } else {
+      alert("❌ קוד שגוי. נסי שוב");
     }
-
-    // 2) המשך הלוגיקה שלך (ברוכים הבאים, שמירה מקומית וכו')
-    toast.success("✅ אימות הצליח! ברוכה הבאה");
-
-    // שמירה ברשימת הנרשמים המקומית (ללוגיקה הקיימת אצלך בלוגין)
-    const users = JSON.parse(localStorage.getItem("hayatfashion_users") || "[]");
-    if (!users.includes(email)) {
-      users.push(email);
-      localStorage.setItem("hayatfashion_users", JSON.stringify(users));
-    }
-
-    try {
-      await emailjs.send(
-        "service_j99xu9j",
-        "template_m7jzwj6",
-        {
-          email: email,
-          user_name: email.split("@")[0],
-        },
-        "IhxqkYmoeZF4p4mZy"
-      );
-    } catch (e) {
-      console.warn("שגיאה בשליחת הודעת ברוכה הבאה:", e);
-    }
-
-    localStorage.setItem("hayat_logged_in", email);
-    setIsLoggedIn(true);
-    setShowOtpInput(false);
-    setUserOtp("");
-    setOtp("");
-    toast.success("🎉 ברוכה הבאה! את מחוברת כעת");
   };
 
   return (
@@ -156,7 +112,7 @@ export default function SignupPage() {
             {!showOtpInput ? (
               <button
                 onClick={handleSendOTP}
-                className="bg-[#4b3a2f] hover:bg-[#c8a18d] text-white px-6 py-2 rounded-full w-full transition"
+                className="bg-[#c8a18d] hover:bg-[#4b3a2f] text-white px-6 py-2 rounded-full w-full"
               >
                 Send Verification Code
               </button>
@@ -171,7 +127,7 @@ export default function SignupPage() {
                 />
                 <button
                   onClick={handleVerifyOTP}
-                  className="bg-[#c8a18d] hover:bg-[#4b3a2f] text-white px-6 py-2 rounded-full w-full transition"
+                  className="bg-[#c8a18d] hover:bg-[#4b3a2f] text-white px-6 py-2 rounded-full w-full"
                 >
                   Verify Code
                 </button>
@@ -180,6 +136,7 @@ export default function SignupPage() {
           </>
         )}
 
+        {/* כפתור חזרה לבית */}
         <button
           onClick={() => router.push("/")}
           className="text-[#4b3a2f] underline mt-4"

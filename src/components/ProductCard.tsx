@@ -1,139 +1,83 @@
-// src/components/ProductCard.tsx
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Product, SizeOption } from "@/types";
-import { addToCart } from "@/lib/cart";
-import { auth } from "@/firebase";
-import { toast } from "sonner";
+import Button from "@/components/Button"; // ← default import
 
-function colorClass(c: string | null | undefined) {
-  if (!c) return "bg-gray-300";
-  const v = c.trim().toLowerCase();
-  if (["black", "#000", "שחור"].includes(v)) return "bg-black";
-  if (["white", "#fff", "לבן"].includes(v)) return "bg-white";
-  if (["beige", "#f5f5dc"].includes(v)) return "bg-amber-100";
-  if (["brown", "#6b4f3a"].includes(v)) return "bg-amber-800";
-  if (["cream", "קרם"].includes(v)) return "bg-orange-100";
-  if (["gray", "grey", "#808080", "אפור"].includes(v)) return "bg-gray-400";
-  if (["navy", "blue", "כחול"].includes(v)) return "bg-blue-600";
-  if (["green", "ירוק"].includes(v)) return "bg-green-600";
-  if (["red", "בורדו", "wine", "maroon"].includes(v)) return "bg-red-700";
-  return "bg-gray-300";
-}
+export type Product = {
+  id: string;
+  title: string;
+  price: number;
+  currency?: string;
+  category?: string;
+  images?: string[];
+  image?: string;
+  rating?: number;
+  colors?: string[];
+  sizes?: any[];
+  description?: string;
+  isActive?: boolean;
+};
 
 type Props = { product: Product };
 
 export default function ProductCard({ product }: Props) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const {
+    id, title, price, currency = "ILS", category,
+    images = [], image, rating = 5, colors = [],
+  } = product;
 
-  // ✅ fallback לתמונה במקרה של URL שגוי/חסום
-  const [imgSrc, setImgSrc] = useState<string>(
-    product.images?.[0] ?? "/no-image.png"
-  );
-
-  const catSlug = String(product.category || "").toLowerCase();
-
-  async function handleAdd() {
-    const sizeInStock: string | null =
-      product.sizes?.find((s: SizeOption) => (s?.stock ?? 0) > 0)?.size ?? null;
-
-    const color: string | null = product.colors?.[0] ?? null;
-
-    if (!auth.currentUser) {
-      toast.error("יש להתחבר כדי להוסיף לעגלה");
-      router.push("/login");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await addToCart({
-        productId: product.id,
-        title: product.title,
-        price: product.salePrice ?? product.price,
-        image: imgSrc || null,
-        category: catSlug,
-        size: sizeInStock,
-        color,
-        qty: 1,
-      });
-      toast.success("הפריט נוסף לעגלה");
-    } catch (e: any) {
-      const msg = String(e?.message || e);
-      if (msg.includes("LOGIN_REQUIRED")) {
-        router.push("/login");
-        toast.error("יש להתחבר כדי להוסיף לעגלה");
-      } else if (msg.toLowerCase().includes("permission")) {
-        toast.error("אין הרשאה לעדכן עגלה. ודאי שהתחברת והמייל מאומת.");
-      } else {
-        console.error(e);
-        toast.error("שגיאה בהוספה לעגלה");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
+  const displayImage = images[0] ?? image ?? "/product-1.png";
+  const href = `/category/${(category ?? "").toLowerCase()}/${id}`;
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition">
-      <Link
-        href={`/category/${catSlug}/${product.id}`}
-        className="block group"
-        aria-label={`Open ${product.title} details`}
-      >
-        <div className="relative w-full h-56">
+    <article className="group h-full flex flex-col rounded-xl bg-white shadow-sm ring-1 ring-black/5 transition hover:shadow-md">
+      <Link href={href}>
+        <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl">
           <Image
-            src={imgSrc}
-            alt={product.title}
+            src={displayImage}
+            alt={title}
             fill
-            sizes="(max-width: 768px) 100vw, 33vw"
-            className="object-cover group-hover:scale-105 transition"
-            onError={() => setImgSrc("/no-image.png")}
-            priority={false}
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="(max-width:768px) 100vw, (max-width:1200px) 50vw, 25vw"
           />
         </div>
       </Link>
 
-      <div className="p-4">
-        <Link href={`/category/${catSlug}/${product.id}`}>
-          <h3 className="text-base font-semibold text-[#3f2f26] line-clamp-1">
-            {product.title}
-          </h3>
-        </Link>
+      <div className="p-4 flex flex-col gap-2 grow">
+        {category && (
+          <p className="text-xs tracking-widest text-[#7e6d65]">{category.toUpperCase()}</p>
+        )}
 
-        <p className="mt-1 text-[#4b3a2f] font-bold">
-          ₪{Number(product.salePrice ?? product.price).toFixed(2)}
-          {product.salePrice && (
-            <span className="ml-2 text-sm text-gray-400 line-through">
-              ₪{Number(product.price).toFixed(2)}
-            </span>
-          )}
-        </p>
+        <h3 className="line-clamp-1 text-lg font-medium text-[#1e1b18]">
+          <Link href={href}>{title}</Link>
+        </h3>
 
-        <div className="flex gap-2 mt-2" role="group" aria-label="Available colors">
-          {product.colors?.slice(0, 5).map((c: string) => (
-            <span
-              key={c}
-              className={`w-4 h-4 rounded-full border ${colorClass(c)}`}
-              title={c}
-              aria-label={`Color ${c}`}
-            />
-          ))}
+        <div className="flex items-center justify-between">
+          <p className="text-[#4b3a2f]">
+            {Intl.NumberFormat("en", { style: "currency", currency, maximumFractionDigits: 2 }).format(price)}
+          </p>
+          <div className="flex items-center gap-0.5 text-sm">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <span key={i} className={i < Math.round(rating) ? "text-[#c8a18d]" : "text-gray-300"}>★</span>
+            ))}
+          </div>
         </div>
 
-        <button
-          onClick={handleAdd}
-          disabled={loading}
-          className="mt-3 w-full rounded-full py-2 text-white bg-[#c8a18d] hover:bg-[#4b3a2f] transition disabled:opacity-60"
-        >
-          {loading ? "Adding..." : "Add to Cart"}
-        </button>
+        {colors.length > 0 && (
+          <div className="mt-1 flex items-center gap-2">
+            {colors.slice(0, 4).map((c, i) => (
+              <span key={i} className="h-3 w-3 rounded-full ring-1 ring-black/10" style={{ backgroundColor: c }} />
+            ))}
+          </div>
+        )}
+
+        <div className="mt-auto pt-2">
+          <Button className="w-full rounded-full bg-[#c8a18d] text-white hover:bg-[#4b3a2f]">
+            Add to Cart
+          </Button>
+        </div>
       </div>
-    </div>
+    </article>
   );
 }

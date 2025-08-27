@@ -1,43 +1,30 @@
 // src/hooks/useCart.ts
 "use client";
 import { useEffect, useState } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase";
-import { listenToCart, addToCart, setItemQty, removeFromCart, sumTotal } from "@/lib/cart";
+import { listenToCart, addToCart, setItemQty, removeFromCart } from "@/lib/cart";
 
 export default function useCart() {
   const [items, setItems] = useState<any[]>([]);
   const [ready, setReady] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    let unsubscribeCart: undefined | (() => void);
-
     const off = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setReady(true);
-
-      // מנתקים האזנה קודמת (אם הייתה)
-      if (unsubscribeCart) {
-        unsubscribeCart();
-        unsubscribeCart = undefined;
-      }
-
       if (u) {
-        // מאזינים לעגלה של המשתמש הנוכחי
-        unsubscribeCart = listenToCart(setItems, u.uid);
+        const unsub = listenToCart(setItems);
+        return () => unsub();
       } else {
         setItems([]);
       }
     });
-
-    return () => {
-      off();
-      if (unsubscribeCart) unsubscribeCart();
-    };
+    return () => off();
   }, []);
 
-  const total = sumTotal(items);
+  const total = items.reduce((s, it) => s + (it.data.price || 0) * (it.data.qty || 0), 0);
 
   return {
     user, ready, items, total,
