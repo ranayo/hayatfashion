@@ -3,11 +3,22 @@
 import Image from "next/image";
 import Link from "next/link";
 import Button from "@/components/Button";
+import { MouseEvent } from "react";
 
 export default function HeroCardOnImage() {
+  // גלילה חלקה לעוגן #categories אם הוא נמצא בדף
+  const handleShopNow = (e: MouseEvent<HTMLAnchorElement>) => {
+    const el = document.getElementById("categories");
+    if (el) {
+      e.preventDefault();
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    // אם אין #categories בדף הנוכחי, ה־Link ימשיך כרגיל (למקרה שתשימי את ההרוא בחצים אחרים)
+  };
+
   return (
-    <section className="relative h-[90vh]">
-      {/* תמונת הרקע המקורית */}
+    <section className="relative h-[75vh] md:h-[90vh]">
+      {/* תמונת רקע */}
       <Image
         src="/hero.jpg"
         alt="Hero background"
@@ -16,30 +27,25 @@ export default function HeroCardOnImage() {
         className="object-cover"
       />
 
-      {/* ✅ טינט בצבע המותג – כמו שהיה קודם */}
-      {/* אפשר לשחק עם /60 /50 /40 כדי לחזק/להחליש את הצבע */}
+      {/* טינט עדין בצבע המותג */}
       <div className="absolute inset-0 bg-[#dbcfc7]/55" />
-
-      {/* שכבת קונטרסט עדינה לטקסט (אפשר להסיר אם לא צריך) */}
+      {/* שכבת קונטרסט עדינה */}
       <div className="absolute inset-0 bg-black/5" />
 
-      {/* מלבן לבן גדול עם הכפתורים */}
+      {/* כרטיס לבן מעל התמונה */}
       <div className="relative z-10 flex h-full items-center justify-center px-4">
-        <div className="w-full max-w-5xl bg-white/95 rounded-2xl shadow-xl ring-1 ring-[#e5ddd7] p-8 sm:p-12 text-center">
+        <div className="w-full max-w-5xl bg-white/95 rounded-2xl shadow-xl ring-1 ring-[#e5ddd7] p-6 sm:p-10 text-center">
           <p className="text-xs sm:text-sm tracking-[0.2em] text-[#7e6d65] mb-2">
-           The New Collection is live
+            The New Collection is live
           </p>
 
           <h1 className="font-elegant text-[#1e1b18] text-4xl sm:text-6xl leading-[1.1] mb-6">
-              HAYAT FASHION
+            HAYAT FASHION
           </h1>
 
-          <p className="text-[#6b5a50] text-base sm:text-lg max-w-3xl mx-auto mb-8">
-           
-          </p>
-
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link href="/category/dresses">
+            {/* גולל לקטגוריות בדף הנוכחי */}
+            <Link href="#categories" onClick={handleShopNow} aria-label="Shop now">
               <Button className="rounded-full bg-[#c8a18d] hover:bg-[#4b3a2f] text-white px-6 py-3">
                 SHOP NOW
               </Button>

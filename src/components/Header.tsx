@@ -2,11 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Heart } from "lucide-react"; // ← הוספתי Heart
+import { ShoppingCart, Heart } from "lucide-react";
 import useCart from "@/hooks/useCart";
 import { useEffect, useState } from "react";
 import KebabMenu from "@/components/KebabMenu";
 import CartDrawer from "@/components/CartDrawer";
+import Search from "@/components/Search";
 
 export default function Header() {
   const { items } = useCart() as any;
@@ -38,8 +39,6 @@ export default function Header() {
     { label: "Accessories", href: "/category/accessories" },
     { label: "Jackets", href: "/category/jackets" },
     { label: "Suits", href: "/category/suits" },
-    
-   
   ];
 
   return (
@@ -63,8 +62,10 @@ export default function Header() {
             className="hidden md:flex items-center gap-6 text-sm font-medium text-white"
             aria-label="Main navigation"
           >
-          
+            {/* 🔎 Search */}
+            <Search />
 
+            {/* Auth */}
             {loggedInEmail ? (
               <>
                 <span className="text-xs text-[#f0e7e0]">👋 {loggedInEmail}</span>
@@ -86,9 +87,7 @@ export default function Header() {
               </>
             )}
 
-           
-
-            {/* 🛒 Cart – badge לבן בצורת pill */}
+            {/* 🛒 Cart */}
             <button
               onClick={() => setCartOpen(true)}
               className="relative flex items-center gap-1 hover:text-[#dbcfc7] transition"
@@ -98,18 +97,14 @@ export default function Header() {
               <span>Cart</span>
               {count > 0 && (
                 <span
-                  className="
-                    absolute -top-2 -right-4 
-                    bg-white text-[#4b3a2f] text-[11px] font-semibold
-                    rounded-full px-2 py-[2px] leading-none
-                    shadow-sm ring-1 ring-white/60
-                  "
+                  className="absolute -top-2 -right-4 bg-white text-[#4b3a2f] text-[11px] font-semibold rounded-full px-2 py-[2px] leading-none shadow-sm ring-1 ring-white/60"
                 >
                   {count}
                 </span>
               )}
             </button>
-              {/* ❤️ לב בלי עיגול */}
+
+            {/* ❤️ Favorites */}
             <Link
               href="/favorites"
               aria-label="Favorites"
@@ -118,7 +113,7 @@ export default function Header() {
               <Heart className="w-6 h-6" />
             </Link>
 
-            {/* ⋮ */}
+            {/* ⋮ Kebab */}
             <KebabMenu items={menuItems} />
           </nav>
         </div>
@@ -141,12 +136,7 @@ export default function Header() {
             <ShoppingCart className="w-5 h-5" />
             {count > 0 && (
               <span
-                className="
-                  absolute -top-2 -right-4 
-                  bg-white text-[#4b3a2f] text-[11px] font-semibold
-                  rounded-full px-2 py-[2px] leading-none
-                  shadow-sm ring-1 ring-white/60
-                "
+                className="absolute -top-2 -right-4 bg-white text-[#4b3a2f] text-[11px] font-semibold rounded-full px-2 py-[2px] leading-none shadow-sm ring-1 ring-white/60"
               >
                 {count}
               </span>
