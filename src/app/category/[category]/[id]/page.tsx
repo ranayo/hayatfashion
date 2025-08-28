@@ -87,12 +87,7 @@ export default async function ProductPage({
             <span className="text-[#4b3a2f] font-medium line-clamp-1">{product.title}</span>
           </nav>
 
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[#4b3a2f] ring-1 ring-[#e5ddd7] hover:bg-[#c8a18d] hover:text-white transition"
-          >
-            ← Back to Home
-          </Link>
+        
         </div>
 
         {/* Product section (מעוצב לפי ה-HTML שלך, בצבעים שלנו) */}
