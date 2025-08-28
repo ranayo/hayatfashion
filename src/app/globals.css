@@ -1,19 +1,23 @@
-@import "@fontsource/libertinus-sans"; 
+/* Tailwind v4 – מומלץ לטעון ראשון */
 @import "tailwindcss";
 
+/* פונטים */
+@import "@fontsource/libertinus-sans";
+@import "@fontsource/poppins";
+
+/* משתנים כלליים */
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
 
-:root {
+  /* אם את משתמשת ב־next/font (Geist) – אלה משתנים שמגיעים מ-layout */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-
+/* מצב כהה לפי מערכת */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -21,15 +25,22 @@
   }
 }
 
-@import "@fontsource/poppins";
+/* ===== גלילה חלקה ועוגנים שלא נחתכים מה-Header ===== */
+html {
+  /* גלילה רכה לעוגנים (#categories וכו') */
+  scroll-behavior: smooth;
+
+  /* פיצוי לגובה ההדר הקבוע. התאימי לפי הגובה בפועל (למשל 6–8rem). */
+  scroll-padding-top: 7rem;
+}
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Poppins', var(--font-sans), system-ui, -apple-system, sans-serif;
 }
 
-/* ==== Simple micro-animations for About page ==== */
+/* ==== אנימציות קטנות (About) ==== */
 @keyframes float {
   0% { transform: translateY(0) }
   50% { transform: translateY(-10px) }
@@ -48,4 +59,3 @@ body {
 .animate-float { animation: float 6s ease-in-out infinite; }
 .animate-fade-up { animation: fadeUp .7s ease-out both; }
 .animate-pulse-soft { animation: pulseSoft 4s ease-in-out infinite; }
-

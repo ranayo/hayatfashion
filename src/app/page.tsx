@@ -1,9 +1,10 @@
+// src/app/page.tsx
 import Image from "next/image";
 import Header from "@/components/Header";
-import Button from "@/components/Button";
 import Link from "next/link";
 import { Instagram, Mail, Phone } from "lucide-react";
 import HeroCardOnImage from "@/components/HeroCardOnImage";
+import NewArrivalsSection from "@/components/NewArrivalsSection";
 
 export default function Home() {
   return (
@@ -11,12 +12,16 @@ export default function Home() {
       <Header />
 
       <main className="bg-[#f6f2ef] text-[#1c1c1c] font-poppins">
-        {/* Hero Section – מעוצב ככרטיס כהה מעל התמונה */}
+        {/* Hero Section */}
         <HeroCardOnImage />
 
         {/* Category Navigation Section */}
-        <section className="py-20 bg-[#f6f2ef] text-center">
+        <section
+          id="categories"
+          className="py-20 bg-[#f6f2ef] text-center scroll-mt-28 md:scroll-mt-32"
+        >
           <h2 className="text-4xl font-elegant mb-12 text-[#1c1c1c]">Categories</h2>
+
           <div className="grid grid-cols-3 gap-8 max-w-5xl mx-auto px-6">
             <Link href="/category/pants" className="flex flex-col items-center group">
               <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden shadow-md group-hover:scale-105 transition">
@@ -83,33 +88,8 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Product Grid (demo) */}
-        <section className="bg-[#f9f7f4] py-20 px-6">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-8 max-w-6xl mx-auto">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden">
-                <div className="relative group overflow-hidden">
-                  <Image
-                    src={`/product-${i + 1}.png`}
-                    alt={`Product ${i + 1}`}
-                    width={300}
-                    height={300}
-                    className="mx-auto duration-300 group-hover:scale-110"
-                  />
-                </div>
-                <div className="p-4 text-center">
-                  <div className="flex items-center justify-center gap-1 text-yellow-500 text-sm mb-1">
-                    <span>★</span>
-                    <span>{(4.3 + i * 0.1).toFixed(1)}</span>
-                  </div>
-                  <h3 className="font-elegant text-base text-gray-800 mb-1"></h3>
-                  <p className="text-sm text-gray-600 mb-3">€120.00 EUR</p>
-                  <Button className="w-full">Add to Cart</Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* NEW ARRIVALS – 6 המוצרים החדשים */}
+        <NewArrivalsSection />
 
         {/* Contact Banner */}
         <section className="relative h-[60vh] text-center flex items-center justify-center bg-[#e6ddd2]" dir="ltr">
