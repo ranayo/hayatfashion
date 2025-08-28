@@ -1,8 +1,10 @@
+// src/app/category/[category]/[id]/page.tsx
 import Image from "next/image";
 import Link from "next/link";
-import Button from "@/components/Button";            // כפתור קיים אצלך (default export)
 import { db } from "@/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import AddToCartClient from "@/components/AddToCartClient";
+import FavoriteButton from "@/components/FavoriteButton";
 
 type Params = { category: string; id: string };
 
@@ -10,14 +12,104 @@ type FirestoreProduct = {
   title?: string;
   description?: string;
   price?: number;
-  currency?: string;           // "ILS" כברירת מחדל
-  images?: string[];
-  image?: string;
+  salePrice?: number;
+  currency?: string;
+  images?: unknown[];
+  image?: unknown;
   colors?: string[] | string;
-  sizes?: any[] | Record<string, unknown>;
-  rating?: number;             // 0-5
+  // באדמין זה יכול להיות: מערך, אובייקט {S:10}, או מחרוזת "S:10, M:5" / "S,M"
+  sizes?: unknown;
+  sizesStock?: unknown; // לכיסוי שם חלופי אם השתמשת בו
+  rating?: number;
   category?: string;
 };
+
+/* ---------- Helpers ---------- */
+
+// בוחרת תמונה ראשית תקינה
+function pickImage(images?: unknown[], image?: unknown): string {
+  const list = Array.isArray(images) ? images : [];
+  const candidates = [...list, image];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) return c;
+    if (c && typeof c === "object") {
+      const maybe = (c as any).url ?? (c as any).src ?? "";
+      if (typeof maybe === "string" && maybe.trim()) return maybe;
+    }
+  }
+  return "/product-1.png";
+}
+
+// נרמול תווית מידה
+const CANON = (s: string) =>
+  s.replace(/\s+/g, "").toUpperCase().replace("X-S", "XS").replace("X-L", "XL");
+
+// מחזיר מערך מידות זמינות + מיפוי מלאי לפי מידה
+function parseSizes(data: any): { sizes: string[]; stock: Record<string, number> } {
+  const out: string[] = [];
+  const stock: Record<string, number> = {};
+
+  const raw = data?.sizes ?? data?.sizesStock ?? data?.sizeStock ?? null;
+
+  if (!raw) return { sizes: out, stock };
+
+  // 1) מערך פשוט: ["S","M"] או [{name:"S",qty:5}]
+  if (Array.isArray(raw)) {
+    for (const it of raw) {
+      if (typeof it === "string") {
+        const k = CANON(it);
+        if (k) {
+          out.push(k);
+          stock[k] = Math.max(1, stock[k] ?? 1);
+        }
+      } else if (it && typeof it === "object") {
+        const name = CANON((it as any).name ?? (it as any).size ?? "");
+        const qty = Number((it as any).qty ?? (it as any).stock ?? 1);
+        if (name) {
+          if (!Number.isNaN(qty)) stock[name] = qty;
+          if ((stock[name] ?? qty) > 0) out.push(name);
+        }
+      }
+    }
+    return { sizes: Array.from(new Set(out)), stock };
+  }
+
+  // 2) אובייקט: { S:10, M:0 }
+  if (raw && typeof raw === "object") {
+    for (const k of Object.keys(raw)) {
+      const key = CANON(k);
+      const qty = Number((raw as any)[k] ?? 0);
+      if (!Number.isNaN(qty)) stock[key] = qty;
+      if (qty > 0) out.push(key);
+    }
+    return { sizes: out, stock };
+  }
+
+  // 3) מחרוזת: "S:10, M:5, L:0" או "S, M"
+  if (typeof raw === "string") {
+    const parts = raw.split(/[,;\n]+/).map((p) => p.trim()).filter(Boolean);
+    for (const p of parts) {
+      if (p.includes(":") || p.includes("=")) {
+        const [left, right] = p.split(/[:=]/);
+        const key = CANON(left || "");
+        const qty = Number((right || "").trim());
+        if (key) {
+          if (!Number.isNaN(qty)) stock[key] = qty;
+          if (qty > 0) out.push(key);
+        }
+      } else {
+        const key = CANON(p);
+        if (key) {
+          out.push(key);
+          stock[key] = Math.max(1, stock[key] ?? 1);
+        }
+      }
+    }
+    return { sizes: Array.from(new Set(out)), stock };
+  }
+
+  return { sizes: out, stock };
+}
 
 async function getProductById(id: string) {
   const ref = doc(db, "products", id);
@@ -26,13 +118,8 @@ async function getProductById(id: string) {
 
   const data = (snap.data() as FirestoreProduct) ?? {};
 
-  // תמונה/ות
-  const images =
-    Array.isArray(data.images) && data.images.length > 0
-      ? data.images
-      : typeof data.image === "string" && data.image
-      ? [data.image]
-      : ["/product-1.png"];
+  const images = Array.isArray(data.images) ? data.images : [];
+  const mainImage = pickImage(images, data.image);
 
   // צבעים תמיד מערך
   const colors =
@@ -42,41 +129,47 @@ async function getProductById(id: string) {
       ? [data.colors]
       : [];
 
-  // מידות: תומך גם במערך וגם באובייקט {S:5,M:3}
-  let sizes: any[] = [];
-  if (Array.isArray(data.sizes)) sizes = data.sizes;
-  else if (data.sizes && typeof data.sizes === "object") sizes = Object.keys(data.sizes);
+  // מידות ומלאי — הפרסר החדש
+  const { sizes, stock } = parseSizes(data);
 
   return {
     id: snap.id,
     title: data.title ?? "Product",
     description: data.description ?? "",
     price: Number(data.price ?? 0),
+    salePrice: data.salePrice != null ? Number(data.salePrice) : undefined,
     currency: data.currency ?? "ILS",
-    images,
+    images: images as string[],
+    image: mainImage,
     colors,
-    sizes,
+    sizes,           // לדוגמה ["M"] אם באדמין הזנת רק M>0
+    sizesStock: stock,
     rating: Number(data.rating ?? 5),
     category: data.category ?? "",
   };
 }
 
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<Params>;
-}) {
-  const { id, category } = await params;         // חשוב await ב-App Router
+export default async function ProductPage({ params }: { params: Params }) {
+  const { id, category } = params;
   const product = await getProductById(id);
   if (!product) return <div className="p-10">Product not found.</div>;
 
-  const catLabel = category.charAt(0).toUpperCase() + category.slice(1).replace("-", " ");
-  const mainImage = product.images?.[0] ?? "/product-1.png";
+  const catLabel =
+    category.charAt(0).toUpperCase() + category.slice(1).replace("-", " ");
+  const fmt = new Intl.NumberFormat("he-IL", {
+    style: "currency",
+    currency: product.currency ?? "ILS",
+    maximumFractionDigits: 2,
+  });
+
+  const hasSale =
+    product.salePrice != null && Number(product.salePrice) < Number(product.price);
+
+  const catForFav = (product.category || category).toLowerCase();
 
   return (
     <main className="bg-[#f6f2ef] min-h-screen">
       <div className="mx-auto max-w-6xl px-6 py-12">
-
         {/* Breadcrumbs + Back to Home */}
         <div className="mb-6 flex items-center justify-between">
           <nav className="text-sm text-[#7e6d65] flex flex-wrap items-center gap-1">
@@ -90,16 +183,42 @@ export default async function ProductPage({
         
         </div>
 
-        {/* Product section (מעוצב לפי ה-HTML שלך, בצבעים שלנו) */}
+        {/* Product section */}
         <section className="text-gray-600 body-font overflow-hidden bg-[#f6f2ef]">
           <div className="container mx-auto">
             <div className="lg:w-4/5 mx-auto flex flex-wrap">
-              {/* תמונה */}
+              {/* תמונה + SALE + לב מועדפים */}
               <div className="relative lg:w-1/2 w-full lg:h-auto h-64 rounded overflow-hidden bg-white ring-1 ring-black/5">
-                <Image src={mainImage} alt={product.title} fill className="object-cover object-center" />
+                {hasSale && (
+                  <span className="absolute left-2 top-2 z-20 rounded-full bg-red-600 px-2 py-1 text-xs font-semibold text-white shadow">
+                    SALE
+                  </span>
+                )}
+
+                {/* לב מועדפים (מימין־עליון מעל התמונה) */}
+                <div className="absolute right-2 top-2 z-20">
+                  <FavoriteButton
+                    variant="solid"
+                    className="shadow-sm"
+                    productId={product.id}
+                    title={product.title}
+                    price={product.price}
+                    salePrice={product.salePrice}
+                    currency={product.currency}
+                    image={product.image}
+                    category={catForFav}
+                  />
+                </div>
+
+                <Image
+                  src={product.image}
+                  alt={product.title}
+                  fill
+                  className="object-cover object-center"
+                />
               </div>
 
-              {/* פרטי מוצר */}
+              {/* פרטים */}
               <div className="lg:w-1/2 w-full lg:pl-10 lg:py-6 mt-6 lg:mt-0">
                 <h2 className="text-xs tracking-widest text-[#7e6d65]">
                   {(product.category || catLabel).toUpperCase()}
@@ -112,12 +231,7 @@ export default async function ProductPage({
                 <div className="flex items-center mb-4">
                   <div className="flex items-center gap-1">
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <span
-                        key={i}
-                        className={i < Math.round(product.rating ?? 5) ? "text-[#c8a18d]" : "text-gray-300"}
-                      >
-                        ★
-                      </span>
+                      <span key={i} className={i < Math.round(product.rating ?? 5) ? "text-[#c8a18d]" : "text-gray-300"}>★</span>
                     ))}
                   </div>
                   <span className="text-sm text-[#7e6d65] ml-3">
@@ -130,68 +244,30 @@ export default async function ProductPage({
                   {product.description || "No description available."}
                 </p>
 
-                {/* צבעים + מידות */}
-                <div className="flex mt-6 items-center pb-5 border-b-2 border-[#e5ddd7] mb-5">
-                  <div className="flex items-center">
-                    <span className="mr-3 text-[#4b3a2f]">Color</span>
-                    {product.colors?.length ? (
-                      product.colors.slice(0, 6).map((c, i) => (
-                        <span
-                          key={i}
-                          className="border-2 border-gray-300 ml-1 rounded-full w-6 h-6 inline-block ring-1 ring-black/5"
-                          style={{ backgroundColor: String(c) }}
-                          title={String(c)}
-                        />
-                      ))
-                    ) : (
-                      <span className="text-sm text-[#7e6d65]">—</span>
-                    )}
-                  </div>
-
-                  {product.sizes?.length > 0 && (
-                    <div className="flex ml-6 items-center">
-                      <span className="mr-3 text-[#4b3a2f]">Size</span>
-                      <div className="relative">
-                        <select className="rounded border appearance-none border-[#e5ddd7] py-2 pl-3 pr-10 bg-white text-[#4b3a2f] focus:outline-none focus:ring-2 focus:ring-[#c8a18d]/40 focus:border-[#c8a18d]">
-                          {product.sizes.map((s: any, idx: number) => (
-                            <option key={idx}>{typeof s === "string" ? s : s?.name ?? String(s)}</option>
-                          ))}
-                        </select>
-                        <span className="absolute right-0 top-0 h-full w-10 text-center text-[#7e6d65] pointer-events-none flex items-center justify-center">
-                          ▾
-                        </span>
-                      </div>
+                {/* מחיר */}
+                <div className="mt-6 border-b-2 border-[#e5ddd7] pb-5 mb-5">
+                  {hasSale ? (
+                    <div className="flex flex-col">
+                      <span className="text-[#7e6d65] line-through">
+                        {fmt.format(product.price)}
+                      </span>
+                      <span className="text-red-600 text-2xl font-semibold">
+                        {fmt.format(product.salePrice!)}
+                      </span>
                     </div>
+                  ) : (
+                    <span className="title-font font-medium text-2xl text-[#4b3a2f]">
+                      {fmt.format(product.price)}
+                    </span>
                   )}
                 </div>
 
-                {/* מחיר + כפתורים */}
-                <div className="flex items-center">
-                  <span className="title-font font-medium text-2xl text-[#4b3a2f]">
-                    {Intl.NumberFormat("en", {
-                      style: "currency",
-                      currency: product.currency ?? "ILS",
-                      maximumFractionDigits: 2,
-                    }).format(product.price ?? 0)}
-                  </span>
-
-                  <Button className="flex ml-auto rounded-full bg-[#c8a18d] px-6 py-3 text-white hover:bg-[#4b3a2f]">
-                    Add to Cart
-                  </Button>
-
-                  <button
-                    className="rounded-full w-10 h-10 bg-white p-0 border-0 inline-flex items-center justify-center text-[#7e6d65] ml-4 ring-1 ring-[#e5ddd7] hover:bg-[#f1e8e2] transition"
-                    aria-label="Add to wishlist"
-                    title="Add to wishlist"
-                  >
-                    ♥
-                  </button>
-                </div>
+                {/* בחירת צבע/מידה + Add to Cart (כולל חובת בחירה) */}
+                <AddToCartClient product={product as any} />
               </div>
             </div>
           </div>
         </section>
-
       </div>
     </main>
   );

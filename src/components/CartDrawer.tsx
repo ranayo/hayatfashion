@@ -1,11 +1,12 @@
+// src/components/CartDrawer.tsx
 "use client";
 
-import { Fragment, useMemo } from "react";
+import { Fragment } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import useCart from "@/hooks/useCart";
+import { useCart } from "@/hooks/useCart";
 
 type Props = {
   open: boolean;
@@ -15,17 +16,7 @@ type Props = {
 const fmt = new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS" });
 
 export default function CartDrawer({ open, onClose }: Props) {
-  const { items = [], setItemQty, removeFromCart } = useCart() as any;
-
-  const subtotal = useMemo(
-    () =>
-      items.reduce(
-        (sum: number, it: any) =>
-          sum + (Number(it?.price) || 0) * (Number(it?.qty) || 0),
-        0
-      ),
-    [items]
-  );
+  const { items, totalPrice, updateQuantity, removeItem } = useCart();
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -78,14 +69,12 @@ export default function CartDrawer({ open, onClose }: Props) {
                         <p className="text-sm text-gray-500">Your cart is empty.</p>
                       ) : (
                         <ul role="list" className="-my-6 divide-y divide-gray-200">
-                          {items.map((it: any, i: number) => (
-                            <li key={i} className="flex py-6">
+                          {items.map((it) => (
+                            <li key={it.id} className="flex py-6">
                               <div className="size-24 shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-50">
                                 <Image
-                                  src={
-                                    it?.image || it?.images?.[0] || "/product-1.png"
-                                  }
-                                  alt={it?.title || "Product"}
+                                  src={it.imageUrl || "/product-1.png"}
+                                  alt={it.title || "Product"}
                                   width={96}
                                   height={96}
                                   className="h-full w-full object-cover"
@@ -95,26 +84,25 @@ export default function CartDrawer({ open, onClose }: Props) {
                               <div className="ml-4 flex flex-1 flex-col">
                                 <div className="flex justify-between text-base font-medium text-gray-900">
                                   <h3 className="pr-3 line-clamp-2">
-                                    <Link
-                                      href={`/category/${encodeURIComponent(
-                                        it?.category || ""
-                                      )}/${it?.productId || it?.id || ""}`}
-                                    >
-                                      {it?.title || "Product"}
+                                    {/* אם יש לכם דף מוצר לפי id, השאירו כך.
+                                        אם לא — עדכנו לנתיב הקיים אצלכם */}
+                                    <Link href={`/product/${encodeURIComponent(it.productId)}`}>
+                                      {it.title}
                                     </Link>
                                   </h3>
                                   <p className="ml-4 whitespace-nowrap">
-                                    {fmt.format(Number(it?.price) || 0)}
+                                    {fmt.format(Number(it.price) || 0)}
                                   </p>
                                 </div>
+
                                 <p className="mt-1 text-sm text-gray-500">
-                                  {it?.color ? (
+                                  {it.color ? (
                                     <>
                                       Color: <span className="font-medium">{it.color}</span>
                                       {" · "}
                                     </>
                                   ) : null}
-                                  {it?.size ? (
+                                  {it.size ? (
                                     <>
                                       Size: <span className="font-medium">{it.size}</span>
                                     </>
@@ -127,33 +115,19 @@ export default function CartDrawer({ open, onClose }: Props) {
                                       aria-label="Decrease quantity"
                                       className="h-7 w-7 rounded-md ring-1 ring-gray-300 hover:bg-gray-50"
                                       onClick={() =>
-                                        setItemQty?.(
-                                          {
-                                            productId: it.productId ?? it.id,
-                                            size: it.size,
-                                            color: it.color,
-                                          },
-                                          Math.max(1, (Number(it.qty) || 1) - 1)
-                                        )
+                                        updateQuantity(it.id!, Math.max(1, (it.quantity || 1) - 1))
                                       }
                                     >
                                       –
                                     </button>
                                     <span className="w-6 text-center tabular-nums">
-                                      {it?.qty ?? 1}
+                                      {it.quantity ?? 1}
                                     </span>
                                     <button
                                       aria-label="Increase quantity"
                                       className="h-7 w-7 rounded-md ring-1 ring-gray-300 hover:bg-gray-50"
                                       onClick={() =>
-                                        setItemQty?.(
-                                          {
-                                            productId: it.productId ?? it.id,
-                                            size: it.size,
-                                            color: it.color,
-                                          },
-                                          (Number(it.qty) || 0) + 1
-                                        )
+                                        updateQuantity(it.id!, (it.quantity || 0) + 1)
                                       }
                                     >
                                       +
@@ -161,13 +135,7 @@ export default function CartDrawer({ open, onClose }: Props) {
                                   </div>
 
                                   <button
-                                    onClick={() =>
-                                      removeFromCart?.({
-                                        productId: it.productId ?? it.id,
-                                        size: it.size,
-                                        color: it.color,
-                                      })
-                                    }
+                                    onClick={() => removeItem(it.id!)}
                                     className="font-medium text-[#c8a18d] hover:text-[#a47e6d]"
                                   >
                                     Remove
@@ -184,7 +152,7 @@ export default function CartDrawer({ open, onClose }: Props) {
                     <div className="border-t border-gray-200 px-6 py-6">
                       <div className="flex justify-between text-base font-medium text-gray-900">
                         <p>Subtotal</p>
-                        <p>{fmt.format(subtotal)}</p>
+                        <p>{fmt.format(totalPrice)}</p>
                       </div>
                       <p className="mt-1 text-sm text-gray-500">
                         Shipping and taxes calculated at checkout.

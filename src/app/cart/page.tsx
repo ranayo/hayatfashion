@@ -1,53 +1,37 @@
+// src/app/cart/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { auth, db } from "@/firebase";
-import {
-  collection,
-  onSnapshot,
-  doc,
-  updateDoc,
-  deleteDoc,
-} from "firebase/firestore";
 import Image from "next/image";
 import Link from "next/link";
-import type { CartItem } from "@/lib/cart";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import useCart, { type CartItem } from "@/hooks/useCart";
+
+const fmt = new Intl.NumberFormat("he-IL", {
+  style: "currency",
+  currency: "ILS",
+});
 
 export default function CartPage() {
-  const [items, setItems] = useState<CartItem[]>([]);
+  // כל ניהול העגלה מגיע מה-hook: מאזין חי, סכומים, פעולות
+  const { uid, loading, items, totalPrice, updateQuantity, removeItem } = useCart();
   const router = useRouter();
 
+  // אם אין משתמש מחובר – מעבירים ללוגין (אחרי שהטעינה הסתיימה)
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-    const col = collection(db, "users", user.uid, "cart");
-    const unsub = onSnapshot(col, (snap) => {
-      setItems(snap.docs.map((d) => d.data() as CartItem));
-    });
-    return () => unsub();
-  }, [router]);
+    if (!loading && !uid) router.push("/login");
+  }, [loading, uid, router]);
 
-  async function updateQty(item: CartItem, qty: number) {
-    if (!auth.currentUser) return;
-    const ref = doc(db, "users", auth.currentUser.uid, "cart", `${item.productId}__${item.size ?? "-"}__${item.color ?? "-"}`);
-    if (qty <= 0) {
-      await deleteDoc(ref);
-    } else {
-      await updateDoc(ref, { qty });
-    }
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#f6f2ef] px-4 md:px-6 py-10">
+        <h1 className="text-3xl font-semibold text-center mb-8 text-[#4b3a2f]">
+          Your Cart
+        </h1>
+        <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow p-6">טוען…</div>
+      </main>
+    );
   }
-
-  async function removeItem(item: CartItem) {
-    if (!auth.currentUser) return;
-    const ref = doc(db, "users", auth.currentUser.uid, "cart", `${item.productId}__${item.size ?? "-"}__${item.color ?? "-"}`);
-    await deleteDoc(ref);
-  }
-
-  const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
   return (
     <main className="min-h-screen bg-[#f6f2ef] px-4 md:px-6 py-10">
@@ -66,26 +50,23 @@ export default function CartPage() {
         ) : (
           <>
             <ul className="divide-y">
-              {items.map((it) => (
-                <li
-                  key={`${it.productId}-${it.size}-${it.color}`}
-                  className="py-4 flex gap-4 items-center"
-                >
-                  {it.image && (
-                    <div className="relative w-20 h-24 flex-shrink-0">
-                      <Image
-                        src={it.image}
-                        alt={it.title}
-                        fill
-                        className="object-cover rounded"
-                      />
-                    </div>
-                  )}
+              {items.map((it: CartItem) => (
+                <li key={it.id} className="py-4 flex gap-4 items-center">
+                  <div className="relative w-20 h-24 flex-shrink-0">
+                    <Image
+                      src={it.imageUrl || "/product-1.png"}
+                      alt={it.title}
+                      fill
+                      className="object-cover rounded"
+                    />
+                  </div>
 
                   {/* פרטים */}
                   <div className="flex-1">
                     <div className="font-medium text-[#3f2f26]">
-                      {it.title}
+                      <Link href={`/product/${encodeURIComponent(it.productId)}`}>
+                        {it.title}
+                      </Link>
                     </div>
                     <div className="text-sm text-gray-500">
                       {it.size && <>Size: {it.size} · </>}
@@ -95,17 +76,19 @@ export default function CartPage() {
                     {/* כמות */}
                     <div className="flex items-center gap-2 mt-2">
                       <button
-                        onClick={() => updateQty(it, it.qty - 1)}
+                        onClick={() => updateQuantity(it.id!, Math.max(1, (it.quantity || 1) - 1))}
                         className="px-3 py-1 border rounded hover:bg-gray-100"
                         aria-label="Decrease quantity"
+                        type="button"
                       >
                         −
                       </button>
-                      <span className="min-w-[2ch] text-center">{it.qty}</span>
+                      <span className="min-w-[2ch] text-center">{it.quantity ?? 1}</span>
                       <button
-                        onClick={() => updateQty(it, it.qty + 1)}
+                        onClick={() => updateQuantity(it.id!, (it.quantity || 0) + 1)}
                         className="px-3 py-1 border rounded hover:bg-gray-100"
                         aria-label="Increase quantity"
+                        type="button"
                       >
                         +
                       </button>
@@ -115,11 +98,12 @@ export default function CartPage() {
                   {/* מחיר + מחיקה */}
                   <div className="text-right">
                     <div className="font-semibold text-[#4b3a2f]">
-                      ₪{(it.price * it.qty).toFixed(2)}
+                      {fmt.format((Number(it.price) || 0) * (Number(it.quantity) || 0))}
                     </div>
                     <button
-                      onClick={() => removeItem(it)}
+                      onClick={() => removeItem(it.id!)}
                       className="mt-2 text-sm text-red-500 hover:text-red-700"
+                      type="button"
                     >
                       Remove
                     </button>
@@ -131,11 +115,14 @@ export default function CartPage() {
             {/* סיכום */}
             <div className="mt-6 flex justify-between items-center">
               <div className="text-lg font-semibold text-[#4b3a2f]">
-                Total: ₪{total.toFixed(2)}
+                Total: {fmt.format(totalPrice)}
               </div>
-              <button className="px-6 py-2 rounded-full bg-[#c8a18d] text-white hover:bg-[#4b3a2f] transition">
+              <Link
+                href="/checkout"
+                className="px-6 py-2 rounded-full bg-[#c8a18d] text-white hover:bg-[#4b3a2f] transition"
+              >
                 Checkout
-              </button>
+              </Link>
             </div>
           </>
         )}
