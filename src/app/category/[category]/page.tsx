@@ -1,4 +1,5 @@
-// אין ProductGrid, נשתמש ישירות ב-ProductCard
+// src/app/category/[category]/page.tsx
+
 import ProductCard from "@/components/ProductCard";
 import { db } from "@/firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
@@ -7,22 +8,44 @@ import Link from "next/link";
 type Params = { category: string };
 type SearchParams = { page?: string };
 
-const PAGE_SIZE = 12; // שנה אם צריך
+const PAGE_SIZE = 12;
+
+/** בוחר את התמונה הראשונה התקינה ממערך/שדה image (או ברירת־מחדל) */
+function pickImage(images?: any[], image?: any): string {
+  const list = Array.isArray(images) ? images : [];
+  const candidates = [...list, image];
+
+  for (const cand of candidates) {
+    if (typeof cand === "string" && cand.trim()) return cand;
+    if (cand && typeof cand === "object") {
+      const maybe = (cand as any).url ?? (cand as any).src ?? "";
+      if (typeof maybe === "string" && maybe.trim()) return maybe;
+    }
+  }
+  return "/product-1.png";
+}
 
 async function getProductsByCategory(category: string) {
   const q = query(collection(db, "products"), where("category", "==", category));
   const snap = await getDocs(q);
 
-  return snap.docs.map((doc) => {
-    const data: any = doc.data();
+  return snap.docs.map((docSnap) => {
+    const data: any = docSnap.data();
+    const images: any[] = Array.isArray(data.images) ? data.images : [];
+
     return {
-      id: doc.id,
+      id: docSnap.id,
       title: data.title ?? "Product",
       price: Number(data.price ?? 0),
-      image:
-        Array.isArray(data.images) && data.images.length > 0
-          ? data.images[0]
-          : data.image ?? "/product-1.png",
+      salePrice:
+        data.salePrice == null || data.salePrice === ""
+          ? undefined
+          : Number(data.salePrice),
+
+      // שולחים גם image מנורמל וגם את המערך למקרה שתרצי בעתיד קרוסלה
+      image: pickImage(images, data.image),
+      images,
+
       category: data.category ?? category,
       rating: Number(data.rating ?? 5),
       currency: data.currency ?? "ILS",
@@ -56,7 +79,7 @@ export default async function CategoryPage({
   params: Promise<Params>;
   searchParams: Promise<SearchParams>;
 }) {
-  const { category } = await params; // חובה await ב-App Router
+  const { category } = await params; // אם כך בנוי הפרויקט שלך — נשאיר עם await
   const { page: pageParam } = await searchParams;
 
   const all = await getProductsByCategory(category);
@@ -71,28 +94,27 @@ export default async function CategoryPage({
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
 
-  // שם קטגוריה לכותרת
   const heading = category.charAt(0).toUpperCase() + category.slice(1).replace("-", " ");
 
   return (
     <section className="bg-[#f6f2ef]">
       <div className="mx-auto max-w-7xl px-6 py-16">
-        {/* Breadcrumbs: HOME \ PANTS */}
-<nav className="mb-4 flex items-center justify-center text-sm">
-  <Link href="/" className="font-semibold text-[#4b3a2f] hover:text-[#c8a18d]">
-    HOME
-  </Link>
-  <span className="mx-2 text-[#c8a18d]">\</span>
-  <span className="font-semibold text-[#4b3a2f]">
-    {heading.toUpperCase()}
-  </span>
-</nav>
+        {/* Breadcrumbs: HOME \ CATEGORY */}
+        <nav className="mb-4 flex items-center justify-center text-sm">
+          <Link href="/" className="font-semibold text-[#4b3a2f] hover:text-[#c8a18d]">
+            HOME
+          </Link>
+          <span className="mx-2 text-[#c8a18d]">\</span>
+          <span className="font-semibold text-[#4b3a2f]">
+            {heading.toUpperCase()}
+          </span>
+        </nav>
 
         <h1 className="mb-8 text-center text-3xl font-semibold text-[#4b3a2f]">
           {heading}
         </h1>
 
-        {/* ה-GRID עצמו */}
+        {/* GRID */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {items.map((p) => (
             <ProductCard key={p.id} product={p} />
@@ -101,7 +123,7 @@ export default async function CategoryPage({
 
         {/* Pagination */}
         <div className="mt-10 flex items-center justify-between border-t border-[#e5ddd7] px-4 py-3 sm:px-6">
-          {/* מובייל: Prev/Next */}
+          {/* מובייל */}
           <div className="flex flex-1 justify-between sm:hidden">
             <a
               href={hasPrev ? `?page=${page - 1}` : "#"}
@@ -123,7 +145,7 @@ export default async function CategoryPage({
             </a>
           </div>
 
-          {/* דסקטופ: Showing + מספרי עמודים */}
+          {/* דסקטופ */}
           <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
             <div>
               <p className="text-sm text-[#6b5a50]">
@@ -146,7 +168,7 @@ export default async function CategoryPage({
                   <span className="sr-only">Previous</span> ‹
                 </a>
 
-                {/* עמודים */}
+                {/* Pages */}
                 {getPageNumbers(totalPages, page).map((p, idx) =>
                   p === "..." ? (
                     <span

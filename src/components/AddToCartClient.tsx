@@ -1,125 +1,215 @@
 // src/components/AddToCartClient.tsx
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Product, SizeOption } from "@/types";
+import { useMemo, useState } from "react";
 import { addToCart } from "@/lib/cart";
 
-/** ממפה מחרוזות צבע ל-Tailwind classes */
-function colorClass(c: string | null | undefined) {
-  if (!c) return "bg-gray-300";
-  const v = c.trim().toLowerCase();
-  if (["black", "#000", "שחור"].includes(v)) return "bg-black";
-  if (["white", "#fff", "לבן"].includes(v)) return "bg-white";
-  if (["beige", "#f5f5dc"].includes(v)) return "bg-amber-100";
-  if (["brown", "#6b4f3a"].includes(v)) return "bg-amber-800";
-  if (["cream", "קרם"].includes(v)) return "bg-orange-100";
-  if (["gray", "grey", "#808080", "אפור"].includes(v)) return "bg-gray-400";
-  if (["navy", "blue", "כחול"].includes(v)) return "bg-blue-600";
-  if (["green", "ירוק"].includes(v)) return "bg-green-600";
-  if (["red", "בורדו", "wine", "maroon"].includes(v)) return "bg-red-700";
-  return "bg-gray-300";
-}
+type ProductForAdd = {
+  id: string;
+  title: string;
+  price: number;
+  salePrice?: number | null;
+  images?: string[];
+  image?: string;
+  colors?: string[];                        // למשל: ["Black", "Beige", "#123456"]
+  sizes?: any[] | Record<string, unknown>;  // מערך ["S","M"...] או אובייקט { S:10, M:0 }
+  currency?: string;
+  category?: string;
+};
 
-export default function AddToCartClient({ product }: { product: Product }) {
-  const router = useRouter();
+const CANONICAL_SIZES = ["XS", "S", "M", "L", "XL", "XXL"] as const;
 
-  const [color, setColor] = useState<string | null>(product.colors?.[0] ?? null);
-  const [size, setSize] = useState<string | null>(
-    product.sizes?.find((s: SizeOption) => s.stock > 0)?.size ?? null
-  );
-  const [qty, setQty] = useState(1);
-  const [loading, setLoading] = useState(false);
+// נרמול מידה: רווחים → אין, אותיות גדולות, גרסאות "X-S" → "XS" וכו'
+const canonSize = (s: string) =>
+  s.replace(/\s+/g, "").toUpperCase().replace("X-S", "XS").replace("X-L", "XL");
 
-  async function handleAdd() {
-    setLoading(true);
+// מיפוי לשמות צבע נפוצים → כיתות Tailwind (ללא inline)
+const colorClass: Record<string, string> = {
+  black: "bg-black",
+  white: "bg-white ring-1 ring-gray-300",
+  beige: "bg-amber-200",
+  pink: "bg-pink-400",
+  blue: "bg-blue-500",
+  green: "bg-green-500",
+  gray: "bg-gray-400",
+  grey: "bg-gray-400",
+  brown: "bg-amber-800",
+};
+
+export default function AddToCartClient({ product }: { product: ProductForAdd }) {
+  const [size, setSize] = useState<string | null>(null);
+  const [color, setColor] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ t: "ok" | "err"; text: string } | null>(null);
+
+  const priceToCharge =
+    product.salePrice != null ? Number(product.salePrice) : Number(product.price);
+
+  const mainImage =
+    (Array.isArray(product.images) && typeof product.images[0] === "string" && product.images[0]) ||
+    (typeof product.image === "string" && product.image) ||
+    "/product-1.png";
+
+  /** אילו מידות זמינות:
+   *  - אם אין כלל שדה מידות → לא דורשים בחירה.
+   *  - אם זה אובייקט עם כמויות → רק מידה עם qty>0 נחשבת לזמינה.
+   */
+  const availableSizes = useMemo(() => {
+    if (!product.sizes) return new Set<string>(); // אין שדה → לא נדרוש מידה
+
+    if (Array.isArray(product.sizes)) {
+      return new Set(product.sizes.map((s) => canonSize(String((s as any).name ?? s))));
+    }
+
+    if (typeof product.sizes === "object") {
+      const s = new Set<string>();
+      for (const k of Object.keys(product.sizes as Record<string, unknown>)) {
+        const qty = Number((product.sizes as any)[k] ?? 0);
+        if (!Number.isNaN(qty) && qty > 0) s.add(canonSize(k));
+      }
+      return s;
+    }
+
+    return new Set<string>();
+  }, [product.sizes]);
+
+  const hasSizes = availableSizes.size > 0;
+  const hasColors = Array.isArray(product.colors) && product.colors.length > 0;
+
+  const disabled = (hasSizes && !size) || (hasColors && !color);
+
+    async function onAdd() {
+    if (disabled) return;
     try {
       await addToCart({
         productId: product.id,
-        title: product.title,
-        price: product.salePrice ?? product.price,
-        image: product.images?.[0] ?? null,
-        category: product.category,
-        size,
-        color,
-        qty,
+        title: product.title ?? "Product",
+        price: priceToCharge,           // תואם לכללי האבטחה (salePrice אם יש)
+        image: mainImage ?? null,
+        category: product.category ?? "",
+        size: size ?? null,
+        color: color ?? null,
+        qty: 1,
       });
-      router.push("/cart");
+
+
+      setMsg({ t: "ok", text: "התווסף לעגלה!" });
+      setTimeout(() => setMsg(null), 2000);
     } catch (e: any) {
-      if (e?.message === "LOGIN_REQUIRED") router.push("/login");
-      else {
-        console.error(e);
-        alert("Failed to add to cart");
-      }
-    } finally {
-      setLoading(false);
+      setMsg({ t: "err", text: e?.message || "שגיאה בהוספה לעגלה" });
     }
   }
 
   return (
-    <div className="mt-6 space-y-4">
-      {/* Color */}
-      <div>
-        <h3 className="font-medium mb-2">Color</h3>
-        <div className="flex gap-2" role="group" aria-label="Choose color">
-          {product.colors?.map((c: string) => (
-            <button
-              key={c}
-              onClick={() => setColor(c)}
-              title={`Color ${c}`}
-              aria-label={`Select color ${c}`}
-              className={`w-7 h-7 rounded-full border ${color === c ? "ring-2 ring-[#c8a18d]" : ""} ${colorClass(c)}`}
-            />
-          ))}
+    <div className="space-y-4">
+      {/* צבעים */}
+      <div className="space-y-2">
+        <div className="text-[#4b3a2f] font-medium">Color</div>
+        <div className="flex items-center gap-2">
+          {hasColors ? (
+            product.colors!.map((cRaw) => {
+              const c = String(cRaw).trim();
+              const isSelected = color === c;
+
+              // אם צבע כמחרוזת HEX/RGB/HSL נייצר מחלקה דינמית של Tailwind (עובד בזכות safelist)
+              const isFunctional =
+                /^#/.test(c) || /^rgba?\(/i.test(c) || /^hsla?\(/i.test(c);
+              const dynBg = isFunctional ? `bg-[${c}]` : "";
+
+              // מחלקת צבע ידועה לפי שם
+              const mapped = colorClass[c.toLowerCase()] ?? "";
+
+              // טבעת ברירת מחדל; ל־white נטפל ברינג אפורה
+              const baseRing =
+                c.toLowerCase() === "white" ? "ring-1 ring-gray-300" : "ring-1 ring-black/10";
+
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  aria-label={c}
+                  aria-pressed={isSelected}
+                  onClick={() => setColor(c)}
+                  className={[
+                    "h-6 w-6 rounded-full transition",
+                    baseRing,
+                    isSelected ? "ring-2 ring-[#c8a18d]" : "",
+                    mapped || dynBg || "bg-gray-200", // fallback עדין
+                  ].join(" ")}
+                  title={c}
+                />
+              );
+            })
+          ) : (
+            <span className="text-sm text-[#7e6d65]">—</span>
+          )}
         </div>
       </div>
 
-      {/* Size */}
-      <div>
-        <h3 className="font-medium mb-2">Size</h3>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Choose size">
-          {product.sizes?.map((s: SizeOption) => (
-            <button
-              key={s.size}
-              onClick={() => s.stock > 0 && setSize(s.size)}
-              disabled={s.stock === 0}
-              title={s.stock === 0 ? `${s.size} (out of stock)` : `Size ${s.size}`}
-              className={`px-3 py-1 border rounded ${
-                size === s.size ? "bg-[#f6f2ef] border-[#c8a18d]" : ""
-              } disabled:opacity-50`}
-            >
-              {s.size}
-            </button>
-          ))}
+      {/* מידות */}
+      <div className="space-y-2">
+        <div className="text-[#4b3a2f] font-medium">Size</div>
+        <div className="flex flex-wrap items-center gap-2">
+          {CANONICAL_SIZES.map((s) => {
+            const isAvailable = !hasSizes || availableSizes.has(s);
+            const isSelected = size === s;
+
+            return (
+              <button
+                key={s}
+                type="button"
+                disabled={!isAvailable}
+                aria-pressed={isSelected}
+                onClick={() => isAvailable && setSize(s)}
+                className={[
+                  "h-9 min-w-9 rounded-full px-3 text-sm transition ring-1",
+                  isSelected
+                    ? "bg-[#c8a18d] text-white ring-[#c8a18d]" // מצב נבחר
+                    : isAvailable
+                    ? "bg-white text-[#4b3a2f] hover:bg-[#f6f2ef] ring-[#e5ddd7]" // רגיל
+                    : "bg-gray-100 text-gray-400 cursor-not-allowed ring-[#e5ddd7]", // מושבת
+                ].join(" ")}
+              >
+                {s}
+              </button>
+            );
+          })}
         </div>
+
+        {disabled && (hasSizes || hasColors) && (
+          <p className="text-xs text-[#b42318]">
+            יש לבחור
+            {hasSizes && !size ? " מידה" : ""}
+            {hasSizes && hasColors && !size && !color ? " ו" : ""}
+            {hasColors && !color ? " צבע" : ""} לפני הוספה לעגלה.
+          </p>
+        )}
       </div>
 
-      {/* Qty */}
-      <div className="flex items-center gap-2">
-        <label htmlFor="qty-input" className="text-sm w-16">
-          Qty:
-        </label>
-        <input
-          id="qty-input"
-          type="number"
-          min={1}
-          value={qty}
-          onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
-          className="w-20 border rounded px-2 py-1"
-          aria-label="Quantity"
-          inputMode="numeric"
-        />
-      </div>
-
-      {/* CTA */}
+      {/* כפתור הוספה */}
       <button
-        onClick={handleAdd}
-        disabled={loading || !size}
-        className="w-full rounded-full py-3 text-white bg-[#c8a18d] hover:bg-[#4b3a2f] transition disabled:opacity-60"
+        type="button"
+        onClick={onAdd}
+        disabled={disabled}
+        className={`w-full rounded-full px-6 py-3 font-semibold transition
+          ${
+            disabled
+              ? "bg-[#c8a18d]/50 text-white cursor-not-allowed"
+              : "bg-[#c8a18d] text-white hover:bg-[#4b3a2f]"
+          }
+        `}
       >
-        {loading ? "Adding..." : "ADD TO CART"}
+        Add to Cart
       </button>
+
+      {/* הודעה קצרה */}
+      {msg && (
+        <div
+          role="status"
+          className={`text-sm ${msg.t === "ok" ? "text-green-700" : "text-red-600"}`}
+        >
+          {msg.text}
+        </div>
+      )}
     </div>
   );
 }
