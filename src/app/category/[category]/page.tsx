@@ -9,14 +9,10 @@ type SearchParams = { page?: string };
 
 const PAGE_SIZE = 12;
 
-/**
- * בוחר את התמונה הראשונה התקינה ממערך images או מהשדה image
- * מחזיר ברירת מחדל אם אין כלום
- */
+/** בוחרת תמונה ראשית תקינה ממערך/שדה image או ברירת מחדל */
 function pickImage(images?: any[], image?: any): string {
   const list = Array.isArray(images) ? images : [];
   const candidates = [...list, image];
-
   for (const cand of candidates) {
     if (typeof cand === "string" && cand.trim()) return cand;
     if (cand && typeof cand === "object") {
@@ -27,10 +23,7 @@ function pickImage(images?: any[], image?: any): string {
   return "/product-1.png";
 }
 
-/**
- * מושך את מוצרי הקטגוריה מה־Firestore ומנרמל שדות
- * מוסיף שדות ברירת מחדל (sizes/colors/inStock) כדי להתאים ל-ProductCard
- */
+/** מושך את מוצרי הקטגוריה ומנרמל שדות */
 async function getProductsByCategory(category: string) {
   const q = query(collection(db, "products"), where("category", "==", category));
   const snap = await getDocs(q);
@@ -39,7 +32,6 @@ async function getProductsByCategory(category: string) {
     const data: any = docSnap.data() ?? {};
     const images: any[] = Array.isArray(data.images) ? data.images : [];
 
-    // normalize option fields so ProductCard לא יתלונן על types
     const sizes: string[] =
       Array.isArray(data.sizes)
         ? data.sizes.filter((s: any) => typeof s === "string")
@@ -54,41 +46,32 @@ async function getProductsByCategory(category: string) {
         ? [data.colors]
         : [];
 
-    const inStock: boolean =
-      typeof data.inStock === "boolean" ? data.inStock : true;
+    const inStock: boolean = typeof data.inStock === "boolean" ? data.inStock : true;
 
     return {
       id: docSnap.id,
       title: data.title ?? "Product",
       price: Number(data.price ?? 0),
-
       salePrice:
         data?.salePrice == null || data?.salePrice === ""
           ? undefined
           : Number(data.salePrice),
-
       image: pickImage(images, data.image),
       images,
-
       category: data.category ?? category,
       rating: Number(data.rating ?? 5),
       currency: data.currency ?? "ILS",
-
       sizes,
       colors,
       inStock,
-
       createdAt: data.createdAt?.toDate?.().toISOString?.() ?? null,
       updatedAt: data.updatedAt?.toDate?.().toISOString?.() ?? null,
     };
   });
 }
 
-/** מחזיר מערך עמודים להצגה עם "…" כשצריך */
-function getPageNumbers(
-  totalPages: number,
-  current: number
-): (number | "...")[] {
+/** יוצר מערך עמודים להצגה עם … כשצריך */
+function getPageNumbers(totalPages: number, current: number): (number | "...")[] {
   const pages: (number | "...")[] = [];
   if (totalPages <= 7) {
     for (let i = 1; i <= totalPages; i++) pages.push(i);
@@ -111,17 +94,16 @@ export default async function CategoryPage({
   params: Promise<Params>;
   searchParams?: Promise<SearchParams>;
 }) {
-  // אצלך params/searchParams הם Promise — נשמור על זה כדי לא לשבור את ה-App Router
+  // פריסה בטוחה של params/searchParams שהם Promise ב־App Router
   const { category } = await params;
-  const { page: pageParam } = (await (searchParams ?? Promise.resolve({}))) as
-    | SearchParams
-    | {};
+  const sp: SearchParams | undefined = searchParams ? await searchParams : undefined;
+  const pageParam = sp?.page;
 
   // טעינת כל מוצרי הקטגוריה
   const all = await getProductsByCategory(category);
   const total = all.length;
 
-  // עימוד צד-שרת (פשוט): חיתוך במערך
+  // עימוד פשוט בצד השרת
   const page = Math.max(1, Number(pageParam ?? 1) || 1);
   const start = (page - 1) * PAGE_SIZE;
   const end = Math.min(start + PAGE_SIZE, total);
@@ -131,50 +113,41 @@ export default async function CategoryPage({
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
 
-  // כותרת יפה לקטגוריה
   const heading =
     category.charAt(0).toUpperCase() + category.slice(1).replace("-", " ");
 
   return (
     <section className="bg-[#f6f2ef]">
       <div className="mx-auto max-w-7xl px-6 py-16">
-        {/* Breadcrumbs: HOME \ CATEGORY */}
+        {/* Breadcrumbs */}
         <nav className="mb-4 flex items-center justify-center text-sm">
-          <Link
-            href="/"
-            className="font-semibold text-[#4b3a2f] hover:text-[#c8a18d]"
-          >
+          <Link href="/" className="font-semibold text-[#4b3a2f] hover:text-[#c8a18d]">
             HOME
           </Link>
           <span className="mx-2 text-[#c8a18d]">\</span>
-          <span className="font-semibold text-[#4b3a2f]">
-            {heading.toUpperCase()}
-          </span>
+          <span className="font-semibold text-[#4b3a2f]">{heading.toUpperCase()}</span>
         </nav>
 
         <h1 className="mb-8 text-center text-3xl font-semibold text-[#4b3a2f]">
           {heading}
         </h1>
 
-        {/* הגריד עצמו */}
+        {/* GRID */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {items.map((p) => (
-            // אם ה-types של ProductCard מחמירים, ה-as any מבטל אי-התאמות מזעריות
             <ProductCard key={p.id} product={p as any} />
           ))}
         </div>
 
-        {/* עימוד */}
+        {/* Pagination */}
         <div className="mt-10 flex items-center justify-between border-t border-[#e5ddd7] px-4 py-3 sm:px-6">
-          {/* מובייל: Prev/Next */}
+          {/* מובייל */}
           <div className="flex flex-1 justify-between sm:hidden">
             <a
               href={hasPrev ? `?page=${page - 1}` : "#"}
               aria-disabled={!hasPrev}
               className={`relative inline-flex items-center rounded-md border border-[#e5ddd7] bg-white px-4 py-2 text-sm font-medium ${
-                hasPrev
-                  ? "text-[#4b3a2f] hover:bg-[#f1e8e2]"
-                  : "text-gray-400 pointer-events-none"
+                hasPrev ? "text-[#4b3a2f] hover:bg-[#f1e8e2]" : "text-gray-400 pointer-events-none"
               }`}
             >
               Previous
@@ -183,46 +156,34 @@ export default async function CategoryPage({
               href={hasNext ? `?page=${page + 1}` : "#"}
               aria-disabled={!hasNext}
               className={`relative ml-3 inline-flex items-center rounded-md border border-[#e5ddd7] bg-white px-4 py-2 text-sm font-medium ${
-                hasNext
-                  ? "text-[#4b3a2f] hover:bg-[#f1e8e2]"
-                  : "text-gray-400 pointer-events-none"
+                hasNext ? "text-[#4b3a2f] hover:bg-[#f1e8e2]" : "text-gray-400 pointer-events-none"
               }`}
             >
               Next
             </a>
           </div>
 
-          {/* דסקטופ: "Showing X–Y of Z" + מספור עמודים */}
+          {/* דסקטופ */}
           <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
             <div>
               <p className="text-sm text-[#6b5a50]">
-                Showing{" "}
-                <span className="font-medium">
-                  {total === 0 ? 0 : start + 1}
-                </span>{" "}
-                to <span className="font-medium">{end}</span> of{" "}
+                Showing <span className="font-medium">{total === 0 ? 0 : start + 1}</span> to{" "}
+                <span className="font-medium">{end}</span> of{" "}
                 <span className="font-medium">{total}</span> results
               </p>
             </div>
             <div>
-              <nav
-                aria-label="Pagination"
-                className="isolate inline-flex -space-x-px rounded-md"
-              >
-                {/* Prev */}
+              <nav aria-label="Pagination" className="isolate inline-flex -space-x-px rounded-md">
                 <a
                   href={hasPrev ? `?page=${page - 1}` : "#"}
                   aria-disabled={!hasPrev}
                   className={`relative inline-flex items-center rounded-l-md px-3 py-2 ring-1 ring-[#e5ddd7] ${
-                    hasPrev
-                      ? "text-[#4b3a2f] hover:bg-[#f1e8e2]"
-                      : "text-gray-400 pointer-events-none"
+                    hasPrev ? "text-[#4b3a2f] hover:bg-[#f1e8e2]" : "text-gray-400 pointer-events-none"
                   }`}
                 >
                   <span className="sr-only">Previous</span> ‹
                 </a>
 
-                {/* עמודים */}
                 {getPageNumbers(totalPages, page).map((pg, idx) =>
                   pg === "..." ? (
                     <span
@@ -250,14 +211,11 @@ export default async function CategoryPage({
                   )
                 )}
 
-                {/* Next */}
                 <a
                   href={hasNext ? `?page=${page + 1}` : "#"}
                   aria-disabled={!hasNext}
                   className={`relative inline-flex items-center rounded-r-md px-3 py-2 ring-1 ring-[#e5ddd7] ${
-                    hasNext
-                      ? "text-[#4b3a2f] hover:bg-[#f1e8e2]"
-                      : "text-gray-400 pointer-events-none"
+                    hasNext ? "text-[#4b3a2f] hover:bg-[#f1e8e2]" : "text-gray-400 pointer-events-none"
                   }`}
                 >
                   <span className="sr-only">Next</span> ›
