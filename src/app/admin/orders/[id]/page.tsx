@@ -32,6 +32,13 @@ type Order = {
   paymentStatus?: string;
 };
 
+// ✅ התיקון — זה כל מה שהוספתי:
+type Props = {
+  params: {
+    id: string;
+  };
+};
+
 const fmtMoney = (v?: number, ccy = "ILS") =>
   typeof v === "number"
     ? new Intl.NumberFormat("he-IL", { style: "currency", currency: ccy }).format(v)
@@ -40,7 +47,8 @@ const fmtMoney = (v?: number, ccy = "ILS") =>
 const fmtDate = (ms?: number) =>
   ms ? new Date(ms).toLocaleString("he-IL") : "-";
 
-export default function OrderDetails({ params }: { params: { id: string } }) {
+// 🔧 פונקציה מתוקנת – עם טיפוס params נכון בלבד
+export default function OrderDetails({ params }: Props) {
   const { id } = params;
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -118,7 +126,6 @@ export default function OrderDetails({ params }: { params: { id: string } }) {
     }
   };
 
-  // ☎️ פעולות ליצירת קשר
   const openWhatsApp = () => {
     if (!order?.phone) return;
     const msg = encodeURIComponent(`שלום ${order.deliveryAddress?.fullName || ""}, ההזמנה #${id}`);
