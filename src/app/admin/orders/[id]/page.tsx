@@ -1,11 +1,15 @@
 "use client";
 
+
+
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/firebase/config";
 import { onAuthStateChanged } from "firebase/auth";
 import { toast } from "sonner";
+
 
 type Order = {
   id: string;
@@ -48,7 +52,8 @@ const fmtDate = (ms?: number) =>
   ms ? new Date(ms).toLocaleString("he-IL") : "-";
 
 // 🔧 פונקציה מתוקנת – עם טיפוס params נכון בלבד
-export default function OrderDetails({ params }: Props) {
+
+export default function OrderDetails({ params }: { params: { id: string } }) {
   const { id } = params;
   const router = useRouter();
   const [loading, setLoading] = useState(true);
