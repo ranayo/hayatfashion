@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   getDoc,
 } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 /** מזהה מסמך בעגלה לפי מוצר+מידה+צבע */
 export function cartDocId(productId: string, size?: string | null, color?: string | null) {
@@ -43,17 +44,28 @@ export type AddToCartInput = {
   qty: number;        // לרוב 1
 };
 
-function ensureUid(uid?: string) {
+/** ✅ בודקת או ממתינה למשתמש מחובר */
+async function ensureUid(uid?: string): Promise<string> {
   if (uid) return uid;
   const u = auth.currentUser;
-  if (!u) throw new Error("LOGIN_REQUIRED");
-  return u.uid;
+  if (u) return u.uid;
+
+  // ממתין ש־Firebase יסיים לטעון את המשתמש בפועל
+  const user = await new Promise((resolve) => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      unsub();
+      resolve(user);
+    });
+  });
+
+  if (!user) throw new Error("LOGIN_REQUIRED");
+  return (user as any).uid;
 }
 
 /** 🔔 האזנה חיה לעגלה (users/{uid}/cart) */
-export function listenToCart(cb: (items: CartItem[]) => void, uid?: string) {
+export async function listenToCart(cb: (items: CartItem[]) => void, uid?: string) {
   try {
-    const theUid = ensureUid(uid);
+    const theUid = await ensureUid(uid);
     const colRef = collection(db, "users", theUid, "cart");
     return onSnapshot(colRef, (snap) => {
       const items: CartItem[] = snap.docs.map((d) => {
@@ -81,7 +93,7 @@ export function listenToCart(cb: (items: CartItem[]) => void, uid?: string) {
 
 /** ➕ הוספה/מיזוג לעגלה (users/{uid}/cart) */
 export async function addToCart(input: AddToCartInput, uid?: string) {
-  const theUid = ensureUid(uid);
+  const theUid = await ensureUid(uid);
   const id = cartDocId(input.productId, input.size ?? null, input.color ?? null);
   const ref = doc(db, "users", theUid, "cart", id);
 
@@ -115,7 +127,7 @@ export async function setItemQty(
   qty: number,
   uid?: string
 ) {
-  const theUid = ensureUid(uid);
+  const theUid = await ensureUid(uid);
   const ref = doc(db, "users", theUid, "cart", cartDocId(ident.productId, ident.size ?? null, ident.color ?? null));
   if (qty <= 0) {
     await deleteDoc(ref);
@@ -129,7 +141,7 @@ export async function removeFromCart(
   ident: { productId: string; size?: string | null; color?: string | null },
   uid?: string
 ) {
-  const theUid = ensureUid(uid);
+  const theUid = await ensureUid(uid);
   const ref = doc(db, "users", theUid, "cart", cartDocId(ident.productId, ident.size ?? null, ident.color ?? null));
   await deleteDoc(ref);
 }

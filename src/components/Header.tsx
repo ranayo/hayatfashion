@@ -8,6 +8,8 @@ import { useEffect, useState } from "react";
 import KebabMenu from "@/components/KebabMenu";
 import CartDrawer from "@/components/CartDrawer";
 import Search from "@/components/Search";
+import { auth } from "@/firebase/config"; // ✅ מחובר ל־Firebase Auth הגלובלי
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 export default function Header() {
   const { items } = useCart() as any;
@@ -18,15 +20,27 @@ export default function Header() {
 
   const [loggedInEmail, setLoggedInEmail] = useState<string | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
+  // ✅ נשתמש ב־onAuthStateChanged במקום localStorage בלבד
   useEffect(() => {
-    const email = localStorage.getItem("hayat_logged_in");
-    if (email) setLoggedInEmail(email);
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user?.email) {
+        setLoggedInEmail(user.email);
+        localStorage.setItem("hayat_logged_in", user.email);
+      } else {
+        setLoggedInEmail(null);
+        localStorage.removeItem("hayat_logged_in");
+      }
+      setLoading(false);
+    });
+    return unsub;
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut(auth);
     localStorage.removeItem("hayat_logged_in");
-    window.location.reload();
+    window.location.href = "/"; // ריענון חזרה לדף הבית
   };
 
   const menuItems = [
@@ -66,7 +80,9 @@ export default function Header() {
             <Search />
 
             {/* Auth */}
-            {loggedInEmail ? (
+            {loading ? (
+              <span className="text-xs text-[#f0e7e0]">...</span>
+            ) : loggedInEmail ? (
               <>
                 <span className="text-xs text-[#f0e7e0]">👋 {loggedInEmail}</span>
                 <button
@@ -96,9 +112,7 @@ export default function Header() {
               <ShoppingCart className="w-5 h-5" />
               <span>Cart</span>
               {count > 0 && (
-                <span
-                  className="absolute -top-2 -right-4 bg-white text-[#4b3a2f] text-[11px] font-semibold rounded-full px-2 py-[2px] leading-none shadow-sm ring-1 ring-white/60"
-                >
+                <span className="absolute -top-2 -right-4 bg-white text-[#4b3a2f] text-[11px] font-semibold rounded-full px-2 py-[2px] leading-none shadow-sm ring-1 ring-white/60">
                   {count}
                 </span>
               )}
@@ -135,9 +149,7 @@ export default function Header() {
           >
             <ShoppingCart className="w-5 h-5" />
             {count > 0 && (
-              <span
-                className="absolute -top-2 -right-4 bg-white text-[#4b3a2f] text-[11px] font-semibold rounded-full px-2 py-[2px] leading-none shadow-sm ring-1 ring-white/60"
-              >
+              <span className="absolute -top-2 -right-4 bg-white text-[#4b3a2f] text-[11px] font-semibold rounded-full px-2 py-[2px] leading-none shadow-sm ring-1 ring-white/60">
                 {count}
               </span>
             )}

@@ -1,8 +1,9 @@
-// src/components/AddToCartClient.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 import { addToCart } from "@/lib/cart";
+import { auth } from "@/firebase/config"; // ✅ שימוש ב-auth הנכון
 
 type ProductForAdd = {
   id: string;
@@ -11,19 +12,16 @@ type ProductForAdd = {
   salePrice?: number | null;
   images?: string[];
   image?: string;
-  colors?: string[];                        // למשל: ["Black", "Beige", "#123456"]
-  sizes?: any[] | Record<string, unknown>;  // מערך ["S","M"...] או אובייקט { S:10, M:0 }
+  colors?: string[];
+  sizes?: any[] | Record<string, unknown>;
   currency?: string;
   category?: string;
 };
 
 const CANONICAL_SIZES = ["XS", "S", "M", "L", "XL", "XXL"] as const;
-
-// נרמול מידה: רווחים → אין, אותיות גדולות, גרסאות "X-S" → "XS" וכו'
 const canonSize = (s: string) =>
   s.replace(/\s+/g, "").toUpperCase().replace("X-S", "XS").replace("X-L", "XL");
 
-// מיפוי לשמות צבע נפוצים → כיתות Tailwind (ללא inline)
 const colorClass: Record<string, string> = {
   black: "bg-black",
   white: "bg-white ring-1 ring-gray-300",
@@ -37,9 +35,20 @@ const colorClass: Record<string, string> = {
 };
 
 export default function AddToCartClient({ product }: { product: ProductForAdd }) {
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [size, setSize] = useState<string | null>(null);
   const [color, setColor] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ t: "ok" | "err"; text: string } | null>(null);
+
+  // ✅ מאזין למצב ההתחברות של אותו auth
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthLoading(false);
+    });
+    return unsub;
+  }, []);
 
   const priceToCharge =
     product.salePrice != null ? Number(product.salePrice) : Number(product.price);
@@ -49,17 +58,11 @@ export default function AddToCartClient({ product }: { product: ProductForAdd })
     (typeof product.image === "string" && product.image) ||
     "/product-1.png";
 
-  /** אילו מידות זמינות:
-   *  - אם אין כלל שדה מידות → לא דורשים בחירה.
-   *  - אם זה אובייקט עם כמויות → רק מידה עם qty>0 נחשבת לזמינה.
-   */
   const availableSizes = useMemo(() => {
-    if (!product.sizes) return new Set<string>(); // אין שדה → לא נדרוש מידה
-
+    if (!product.sizes) return new Set<string>();
     if (Array.isArray(product.sizes)) {
       return new Set(product.sizes.map((s) => canonSize(String((s as any).name ?? s))));
     }
-
     if (typeof product.sizes === "object") {
       const s = new Set<string>();
       for (const k of Object.keys(product.sizes as Record<string, unknown>)) {
@@ -68,30 +71,40 @@ export default function AddToCartClient({ product }: { product: ProductForAdd })
       }
       return s;
     }
-
     return new Set<string>();
   }, [product.sizes]);
 
   const hasSizes = availableSizes.size > 0;
   const hasColors = Array.isArray(product.colors) && product.colors.length > 0;
-
   const disabled = (hasSizes && !size) || (hasColors && !color);
 
-    async function onAdd() {
-    if (disabled) return;
+  async function onAdd() {
+    if (authLoading) {
+      setMsg({ t: "err", text: "בודק התחברות..." });
+      return;
+    }
+
+    if (!user) {
+      setMsg({ t: "err", text: "אנא התחברי לפני הוספה לעגלה" });
+      return;
+    }
+
+    if (disabled) {
+      setMsg({ t: "err", text: "בחרי מידה/צבע לפני הוספה" });
+      return;
+    }
+
     try {
       await addToCart({
         productId: product.id,
         title: product.title ?? "Product",
-        price: priceToCharge,           // תואם לכללי האבטחה (salePrice אם יש)
+        price: priceToCharge,
         image: mainImage ?? null,
         category: product.category ?? "",
         size: size ?? null,
         color: color ?? null,
         qty: 1,
       });
-
-
       setMsg({ t: "ok", text: "התווסף לעגלה!" });
       setTimeout(() => setMsg(null), 2000);
     } catch (e: any) {
@@ -109,16 +122,7 @@ export default function AddToCartClient({ product }: { product: ProductForAdd })
             product.colors!.map((cRaw) => {
               const c = String(cRaw).trim();
               const isSelected = color === c;
-
-              // אם צבע כמחרוזת HEX/RGB/HSL נייצר מחלקה דינמית של Tailwind (עובד בזכות safelist)
-              const isFunctional =
-                /^#/.test(c) || /^rgba?\(/i.test(c) || /^hsla?\(/i.test(c);
-              const dynBg = isFunctional ? `bg-[${c}]` : "";
-
-              // מחלקת צבע ידועה לפי שם
               const mapped = colorClass[c.toLowerCase()] ?? "";
-
-              // טבעת ברירת מחדל; ל־white נטפל ברינג אפורה
               const baseRing =
                 c.toLowerCase() === "white" ? "ring-1 ring-gray-300" : "ring-1 ring-black/10";
 
@@ -133,7 +137,7 @@ export default function AddToCartClient({ product }: { product: ProductForAdd })
                     "h-6 w-6 rounded-full transition",
                     baseRing,
                     isSelected ? "ring-2 ring-[#c8a18d]" : "",
-                    mapped || dynBg || "bg-gray-200", // fallback עדין
+                    mapped || "bg-gray-200",
                   ].join(" ")}
                   title={c}
                 />
@@ -163,10 +167,10 @@ export default function AddToCartClient({ product }: { product: ProductForAdd })
                 className={[
                   "h-9 min-w-9 rounded-full px-3 text-sm transition ring-1",
                   isSelected
-                    ? "bg-[#c8a18d] text-white ring-[#c8a18d]" // מצב נבחר
+                    ? "bg-[#c8a18d] text-white ring-[#c8a18d]"
                     : isAvailable
-                    ? "bg-white text-[#4b3a2f] hover:bg-[#f6f2ef] ring-[#e5ddd7]" // רגיל
-                    : "bg-gray-100 text-gray-400 cursor-not-allowed ring-[#e5ddd7]", // מושבת
+                    ? "bg-white text-[#4b3a2f] hover:bg-[#f6f2ef] ring-[#e5ddd7]"
+                    : "bg-gray-100 text-gray-400 cursor-not-allowed ring-[#e5ddd7]",
                 ].join(" ")}
               >
                 {s}
@@ -174,34 +178,24 @@ export default function AddToCartClient({ product }: { product: ProductForAdd })
             );
           })}
         </div>
-
-        {disabled && (hasSizes || hasColors) && (
-          <p className="text-xs text-[#b42318]">
-            יש לבחור
-            {hasSizes && !size ? " מידה" : ""}
-            {hasSizes && hasColors && !size && !color ? " ו" : ""}
-            {hasColors && !color ? " צבע" : ""} לפני הוספה לעגלה.
-          </p>
-        )}
       </div>
 
       {/* כפתור הוספה */}
       <button
         type="button"
         onClick={onAdd}
-        disabled={disabled}
+        disabled={disabled || authLoading}
         className={`w-full rounded-full px-6 py-3 font-semibold transition
           ${
-            disabled
+            disabled || authLoading
               ? "bg-[#c8a18d]/50 text-white cursor-not-allowed"
               : "bg-[#c8a18d] text-white hover:bg-[#4b3a2f]"
           }
         `}
       >
-        Add to Cart
+        {authLoading ? "בודק התחברות..." : user ? "Add to Cart" : "Login Required"}
       </button>
 
-      {/* הודעה קצרה */}
       {msg && (
         <div
           role="status"
